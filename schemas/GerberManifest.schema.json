@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "sourcePath": {
+      "type": "string"
+    },
+    "archiveName": {
+      "type": "string"
+    },
+    "sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "archiveSizeBytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "extractedSizeBytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "layerCount": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "dimensions": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "unit": {
+          "type": "string",
+          "enum": [
+            "mm",
+            "in"
+          ]
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "unit"
+      ],
+      "additionalProperties": false
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "copper",
+              "soldermask",
+              "silkscreen",
+              "solderpaste",
+              "drill",
+              "outline",
+              "drawing",
+              "unknown"
+            ]
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "top",
+              "bottom",
+              "inner",
+              "all",
+              "unknown"
+            ]
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "filename",
+          "type",
+          "side",
+          "sizeBytes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "hasOutline": {
+      "type": "boolean"
+    },
+    "hasDrill": {
+      "type": "boolean"
+    },
+    "previews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "local-top",
+              "local-bottom",
+              "jlc-analysis",
+              "jlc-order-check",
+              "order-submit",
+              "order-success"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "jlc-page"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "svg",
+              "png"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "path",
+          "source",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ]
+          },
+          "file": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "severity"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "inspectedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "sourcePath",
+    "archiveName",
+    "sha256",
+    "archiveSizeBytes",
+    "extractedSizeBytes",
+    "layerCount",
+    "layers",
+    "hasOutline",
+    "hasDrill",
+    "previews",
+    "warnings",
+    "inspectedAt"
+  ],
+  "additionalProperties": false
+}

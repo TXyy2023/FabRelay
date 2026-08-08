@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "sourcePath": "/Users/a1234/Downloads/PCB画_非彩色丝印_梵高-星空_20260721_093507.zip",
+  "archiveName": "PCB画_非彩色丝印_梵高-星空_20260721_093507.zip",
+  "sha256": "f8be16c12e0595529c37cd7442bd8900fc1b217533223f818ca087d41e977265",
+  "archiveSizeBytes": 2598627,
+  "extractedSizeBytes": 8084217,
+  "layerCount": 2,
+  "dimensions": {
+    "width": 85.6,
+    "height": 61.1184,
+    "unit": "mm"
+  },
+  "layers": [
+    {
+      "filename": "Gerber_TopLayer.GTL",
+      "type": "copper",
+      "side": "top",
+      "sizeBytes": 3450701
+    },
+    {
+      "filename": "Gerber_BottomLayer.GBL",
+      "type": "copper",
+      "side": "bottom",
+      "sizeBytes": 943593
+    },
+    {
+      "filename": "Gerber_TopSilkscreenLayer.GTO",
+      "type": "silkscreen",
+      "side": "top",
+      "sizeBytes": 1340843
+    },
+    {
+      "filename": "Gerber_BottomSilkscreenLayer.GBO",
+      "type": "silkscreen",
+      "side": "bottom",
+      "sizeBytes": 631
+    },
+    {
+      "filename": "Gerber_TopSolderMaskLayer.GTS",
+      "type": "soldermask",
+      "side": "top",
+      "sizeBytes": 1550271
+    },
+    {
+      "filename": "Gerber_BottomSolderMaskLayer.GBS",
+      "type": "soldermask",
+      "side": "bottom",
+      "sizeBytes": 773915
+    },
+    {
+      "filename": "Gerber_BoardOutlineLayer.GKO",
+      "type": "outline",
+      "side": "all",
+      "sizeBytes": 885
+    },
+    {
+      "filename": "Gerber_DocumentLayer.GDL",
+      "type": "unknown",
+      "side": "unknown",
+      "sizeBytes": 7154
+    },
+    {
+      "filename": "Gerber_DrillDrawingLayer.GDD",
+      "type": "unknown",
+      "side": "unknown",
+      "sizeBytes": 15761
+    },
+    {
+      "filename": "FlyingProbeTesting.json",
+      "type": "unknown",
+      "side": "unknown",
+      "sizeBytes": 369
+    },
+    {
+      "filename": "PCB下单必读.txt",
+      "type": "unknown",
+      "side": "unknown",
+      "sizeBytes": 94
+    }
+  ],
+  "hasOutline": true,
+  "hasDrill": false,
+  "previews": [
+    {
+      "kind": "local-top",
+      "path": "/Users/a1234/Desktop/JLC CLI/preview/PCB-_-_---_20260721_093507/local-top.svg",
+      "source": "local",
+      "format": "svg",
+      "createdAt": "2026-08-07T07:03:42.729Z"
+    },
+    {
+      "kind": "local-top",
+      "path": "/Users/a1234/Desktop/JLC CLI/preview/PCB-_-_---_20260721_093507/local-top.png",
+      "source": "local",
+      "format": "png",
+      "createdAt": "2026-08-07T07:03:42.729Z"
+    },
+    {
+      "kind": "local-bottom",
+      "path": "/Users/a1234/Desktop/JLC CLI/preview/PCB-_-_---_20260721_093507/local-bottom.svg",
+      "source": "local",
+      "format": "svg",
+      "createdAt": "2026-08-07T07:03:42.729Z"
+    },
+    {
+      "kind": "local-bottom",
+      "path": "/Users/a1234/Desktop/JLC CLI/preview/PCB-_-_---_20260721_093507/local-bottom.png",
+      "source": "local",
+      "format": "png",
+      "createdAt": "2026-08-07T07:03:42.729Z"
+    }
+  ],
+  "warnings": [
+    {
+      "code": "NO_DRILL",
+      "message": "No drill file was identified.",
+      "severity": "warning"
+    },
+    {
+      "code": "UNKNOWN_LAYER",
+      "message": "File was not mapped to a Gerber layer.",
+      "severity": "warning",
+      "file": "Gerber_DocumentLayer.GDL"
+    },
+    {
+      "code": "UNKNOWN_LAYER",
+      "message": "File was not mapped to a Gerber layer.",
+      "severity": "warning",
+      "file": "Gerber_DrillDrawingLayer.GDD"
+    },
+    {
+      "code": "UNKNOWN_LAYER",
+      "message": "File was not mapped to a Gerber layer.",
+      "severity": "warning",
+      "file": "FlyingProbeTesting.json"
+    },
+    {
+      "code": "UNKNOWN_LAYER",
+      "message": "File was not mapped to a Gerber layer.",
+      "severity": "warning",
+      "file": "PCB下单必读.txt"
+    }
+  ],
+  "inspectedAt": "2026-08-07T07:03:43.016Z"
+}

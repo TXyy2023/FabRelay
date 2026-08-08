@@ -1,0 +1,522 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "environment": {
+      "type": "string",
+      "const": "test"
+    },
+    "baseUrl": {
+      "type": "string",
+      "const": "https://test.jlc.com/"
+    },
+    "gerberPath": {
+      "type": "string"
+    },
+    "gerberSha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "parameterHash": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "selectionMode": {
+      "default": "manual",
+      "type": "string",
+      "enum": [
+        "manual",
+        "auto"
+      ]
+    },
+    "requirementEvidence": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {},
+          "sourcePath": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "heuristic"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "sourcePath",
+          "confidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "spec": {
+      "type": "object",
+      "properties": {
+        "material": {
+          "type": "string"
+        },
+        "layerCount": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "quantity": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "boardThicknessMm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "copperWeightOz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "solderMaskColor": {
+          "type": "string"
+        },
+        "silkscreenColor": {
+          "type": "string"
+        },
+        "surfaceFinish": {
+          "type": "string"
+        },
+        "viaTreatment": {
+          "type": "string"
+        },
+        "impedanceControl": {
+          "type": "string"
+        },
+        "delivery": {
+          "type": "string"
+        },
+        "addressId": {
+          "type": "string"
+        },
+        "contactId": {
+          "type": "string"
+        },
+        "shippingMethodId": {
+          "type": "string"
+        },
+        "confirmationMode": {
+          "default": "manual",
+          "type": "string",
+          "const": "manual"
+        },
+        "smt": {
+          "default": false,
+          "type": "boolean",
+          "const": false
+        },
+        "stencil": {
+          "default": false,
+          "type": "boolean",
+          "const": false
+        },
+        "processOptions": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "confirmationMode",
+        "smt",
+        "stencil",
+        "processOptions"
+      ],
+      "additionalProperties": false
+    },
+    "localManifest": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "sourcePath": {
+          "type": "string"
+        },
+        "archiveName": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "archiveSizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "extractedSizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "layerCount": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "dimensions": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "height": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "unit": {
+              "type": "string",
+              "enum": [
+                "mm",
+                "in"
+              ]
+            }
+          },
+          "required": [
+            "width",
+            "height",
+            "unit"
+          ],
+          "additionalProperties": false
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "filename": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "copper",
+                  "soldermask",
+                  "silkscreen",
+                  "solderpaste",
+                  "drill",
+                  "outline",
+                  "drawing",
+                  "unknown"
+                ]
+              },
+              "side": {
+                "type": "string",
+                "enum": [
+                  "top",
+                  "bottom",
+                  "inner",
+                  "all",
+                  "unknown"
+                ]
+              },
+              "sizeBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "filename",
+              "type",
+              "side",
+              "sizeBytes"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "hasOutline": {
+          "type": "boolean"
+        },
+        "hasDrill": {
+          "type": "boolean"
+        },
+        "previews": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "local-top",
+                  "local-bottom",
+                  "jlc-analysis",
+                  "jlc-order-check",
+                  "order-submit",
+                  "order-success"
+                ]
+              },
+              "path": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "jlc-page"
+                ]
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "svg",
+                  "png"
+                ]
+              },
+              "createdAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "path",
+              "source",
+              "createdAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "info",
+                  "warning",
+                  "error"
+                ]
+              },
+              "file": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "severity"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "inspectedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "sourcePath",
+        "archiveName",
+        "sha256",
+        "archiveSizeBytes",
+        "extractedSizeBytes",
+        "layerCount",
+        "layers",
+        "hasOutline",
+        "hasDrill",
+        "previews",
+        "warnings",
+        "inspectedAt"
+      ],
+      "additionalProperties": false
+    },
+    "jlcAnalysis": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
+    "displayParameters": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "money": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string",
+          "const": "CNY"
+        },
+        "pcb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "extras": {
+          "type": "number",
+          "minimum": 0
+        },
+        "tax": {
+          "type": "number",
+          "minimum": 0
+        },
+        "shipping": {
+          "type": "number",
+          "minimum": 0
+        },
+        "discount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "total": {
+          "type": "number",
+          "minimum": 0
+        },
+        "displayText": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "currency",
+        "total",
+        "displayText"
+      ],
+      "additionalProperties": false
+    },
+    "addressLabel": {
+      "type": "string"
+    },
+    "contactLabel": {
+      "type": "string"
+    },
+    "shippingLabel": {
+      "type": "string"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "local-top",
+              "local-bottom",
+              "jlc-analysis",
+              "jlc-order-check",
+              "order-submit",
+              "order-success"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "jlc-page"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "svg",
+              "png"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "path",
+          "source",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "pageFingerprint": {
+      "type": "string"
+    },
+    "quotedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "environment",
+    "baseUrl",
+    "gerberPath",
+    "gerberSha256",
+    "parameterHash",
+    "selectionMode",
+    "requirementEvidence",
+    "spec",
+    "localManifest",
+    "jlcAnalysis",
+    "displayParameters",
+    "money",
+    "artifacts",
+    "pageFingerprint",
+    "quotedAt"
+  ],
+  "additionalProperties": false
+}

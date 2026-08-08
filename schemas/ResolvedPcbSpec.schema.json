@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "spec": {
+      "type": "object",
+      "properties": {
+        "material": {
+          "type": "string"
+        },
+        "layerCount": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "quantity": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "boardThicknessMm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "copperWeightOz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "solderMaskColor": {
+          "type": "string"
+        },
+        "silkscreenColor": {
+          "type": "string"
+        },
+        "surfaceFinish": {
+          "type": "string"
+        },
+        "viaTreatment": {
+          "type": "string"
+        },
+        "impedanceControl": {
+          "type": "string"
+        },
+        "delivery": {
+          "type": "string"
+        },
+        "addressId": {
+          "type": "string"
+        },
+        "contactId": {
+          "type": "string"
+        },
+        "shippingMethodId": {
+          "type": "string"
+        },
+        "confirmationMode": {
+          "default": "manual",
+          "type": "string",
+          "const": "manual"
+        },
+        "smt": {
+          "default": false,
+          "type": "boolean",
+          "const": false
+        },
+        "stencil": {
+          "default": false,
+          "type": "boolean",
+          "const": false
+        },
+        "processOptions": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "confirmationMode",
+        "smt",
+        "stencil",
+        "processOptions"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {},
+          "sourcePath": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "heuristic"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "sourcePath",
+          "confidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {},
+                "sourcePath": {
+                  "type": "string"
+                },
+                "line": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "value",
+                "sourcePath"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "values",
+          "message"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "unmappedRequirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sourcePath": {
+            "type": "string"
+          },
+          "line": {
+            "type": "number"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourcePath",
+          "line",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "resolvedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "spec",
+    "evidence",
+    "conflicts",
+    "unmappedRequirements",
+    "resolvedAt"
+  ],
+  "additionalProperties": false
+}

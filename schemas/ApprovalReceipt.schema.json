@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "quoteId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "environment": {
+      "type": "string",
+      "const": "test"
+    },
+    "gerberSha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "parameterHash": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "maxAmount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "addressId": {
+      "type": "string"
+    },
+    "shippingMethodId": {
+      "type": "string"
+    },
+    "approvedAt": {
+      "type": "string"
+    },
+    "expiresAt": {
+      "type": "string"
+    },
+    "signature": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "quoteId",
+    "environment",
+    "gerberSha256",
+    "parameterHash",
+    "maxAmount",
+    "approvedAt",
+    "expiresAt",
+    "signature"
+  ],
+  "additionalProperties": false
+}

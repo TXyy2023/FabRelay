@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "orderId": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "submitted",
+        "under_review",
+        "file_issue",
+        "awaiting_payment",
+        "awaiting_production_file",
+        "in_production",
+        "ready_to_ship",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "unknown"
+      ]
+    },
+    "rawStatus": {
+      "type": "string"
+    },
+    "production": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "submitted",
+            "under_review",
+            "file_issue",
+            "awaiting_payment",
+            "awaiting_production_file",
+            "in_production",
+            "ready_to_ship",
+            "shipped",
+            "delivered",
+            "cancelled",
+            "unknown"
+          ]
+        },
+        "rawStatus": {
+          "type": "string"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string"
+              },
+              "time": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "state"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "status",
+        "rawStatus",
+        "nodes"
+      ],
+      "additionalProperties": false
+    },
+    "shipping": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "default": "unknown",
+          "type": "string",
+          "enum": [
+            "not_shipped",
+            "in_transit",
+            "delivered",
+            "exception",
+            "unknown"
+          ]
+        },
+        "carrier": {
+          "type": "string"
+        },
+        "trackingNumber": {
+          "type": "string"
+        },
+        "rawStatus": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "capturedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "orderId",
+    "status",
+    "rawStatus",
+    "production",
+    "shipping",
+    "capturedAt"
+  ],
+  "additionalProperties": false
+}

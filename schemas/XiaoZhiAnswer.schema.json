@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "question": {
+      "type": "string"
+    },
+    "answer": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "const": "jlc-xiaozhi"
+    },
+    "askedAt": {
+      "type": "string"
+    },
+    "answeredAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "question",
+    "answer",
+    "source",
+    "askedAt",
+    "answeredAt"
+  ],
+  "additionalProperties": false
+}

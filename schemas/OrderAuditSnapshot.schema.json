@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "orderId": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "passed",
+        "issue",
+        "unknown"
+      ]
+    },
+    "rawStatus": {
+      "type": "string"
+    },
+    "detail": {
+      "type": "string"
+    },
+    "capturedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "orderId",
+    "status",
+    "rawStatus",
+    "capturedAt"
+  ],
+  "additionalProperties": false
+}

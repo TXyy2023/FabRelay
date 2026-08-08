@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "required": {
+      "type": "boolean"
+    },
+    "accepted": {
+      "type": "boolean"
+    },
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "noticeSha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "acceptedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "required",
+    "accepted",
+    "version",
+    "noticeSha256"
+  ],
+  "additionalProperties": false
+}

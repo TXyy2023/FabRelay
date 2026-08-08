@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "environment": {
+      "type": "string",
+      "const": "test"
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "displayText": {
+            "type": "string"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "priceText": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "value",
+          "displayText",
+          "disabled",
+          "selected"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "unavailableGroups": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pageFingerprint": {
+      "type": "string"
+    },
+    "capturedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "environment",
+    "options",
+    "unavailableGroups",
+    "pageFingerprint",
+    "capturedAt"
+  ],
+  "additionalProperties": false
+}
