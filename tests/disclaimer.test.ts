@@ -27,7 +27,9 @@ describe('first-run unofficial-tool warning', () => {
     expect(persisted.mode).toBe('auto');
     expect(persisted.globalPreferences).toEqual({ material: 'FR-4' });
     expect(persisted.disclaimer.noticeSha256).toBe(DISCLAIMER_NOTICE_SHA256);
-    expect((await stat(configFile)).mode & 0o777).toBe(0o600);
+    if (process.platform !== 'win32') {
+      expect((await stat(configFile)).mode & 0o777).toBe(0o600);
+    }
 
     expect(await resetDisclaimer(configFile)).toMatchObject({ required: true, accepted: false });
   });

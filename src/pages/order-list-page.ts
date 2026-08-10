@@ -24,7 +24,7 @@ export class OrderListPage extends JlcPageObject {
   }
 
   async open(): Promise<void> {
-    await this.page.goto(ORDER_LIST_URL, { waitUntil: 'domcontentloaded' });
+    await this.fullGoto(ORDER_LIST_URL);
     await this.contract('order list filters', () => this.page.getByPlaceholder('文件名 / 订单编号 / 备忘').waitFor({ state: 'visible' }));
     await this.waitForListLoaded();
   }

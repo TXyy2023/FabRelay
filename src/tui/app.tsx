@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, Text, render, useApp, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { browserDoctor } from '../browser/doctor.js';
-import { runManualChromeLogin } from '../browser/manual-login.js';
+import { chromeQuitHint, runManualChromeLogin } from '../browser/manual-login.js';
 import { withBrowserSession } from '../browser/session.js';
 import { appPaths } from '../config/paths.js';
 import { inspectGerberZip } from '../gerber/inspect.js';
@@ -159,7 +159,7 @@ function App(): React.JSX.Element {
       if (command === '/auth') {
         let status = await withBrowserSession({}, async (session) => await new LoginPage(session.page).status());
         if (!status.authenticated) {
-          setMessage('已打开专用 Chrome；登录并完成滑块后，请在该窗口按 ⌘Q 完全退出');
+          setMessage(`已打开专用 Chrome；登录并完成滑块后，请${chromeQuitHint()}`);
           await runManualChromeLogin();
           status = await withBrowserSession({ browser: 'chrome' }, async (session) => await new LoginPage(session.page).status());
         }

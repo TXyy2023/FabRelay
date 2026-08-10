@@ -12,7 +12,7 @@ export class GerberUploadDialog extends JlcPageObject {
   }
 
   async open(): Promise<void> {
-    await this.page.goto(UPLOAD_URL, { waitUntil: 'domcontentloaded' });
+    await this.fullGoto(UPLOAD_URL);
     await this.contract('Gerber file input', () => this.page.locator(PAGE_CONTRACTS.gerberInput).waitFor({ state: 'attached' }));
   }
 

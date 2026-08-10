@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Locator, Page } from 'playwright';
+import { fullLoad } from '../browser/nav.js';
 import { JlcError } from '../domain/errors.js';
 
 export abstract class JlcPageObject {
@@ -11,6 +12,10 @@ export abstract class JlcPageObject {
     } catch (error) {
       throw new JlcError('CONTRACT_DRIFT', `JLC page contract changed: ${description}.`, { cause: error });
     }
+  }
+
+  protected async fullGoto(url: string): Promise<void> {
+    await fullLoad(this.page, url);
   }
 
   protected async fieldContainer(label: string): Promise<Locator> {

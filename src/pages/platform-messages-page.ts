@@ -14,7 +14,7 @@ export class PlatformMessagesPage extends JlcPageObject {
   }
 
   async open(): Promise<void> {
-    await this.page.goto(ORDER_LIST_URL, { waitUntil: 'domcontentloaded' });
+    await this.fullGoto(ORDER_LIST_URL);
     await this.contract('platform message panel', () => this.page.locator('.notice .pm-tabs').first().waitFor({ state: 'attached' }));
     await this.page.waitForFunction(() => document.querySelectorAll('.notice .pm-content .item:not(.last)').length > 0
       || /暂无消息|暂无数据/.test(document.body.innerText), undefined, { timeout: 30_000 }).catch((error) => {

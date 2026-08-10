@@ -30,8 +30,9 @@ customer code, and the company that owns the current customer code. The TUI
 also has platform-message and 嘉小智 conversation panels. `jlc-cli auth status
 --json` returns the same user summary.
 
-Requirements: Node.js 22.12 or newer on macOS ARM64. The package uses its own
-0700 Playwright profile and never opens the user's normal Chrome profile.
+Requirements: Node.js 22.12 or newer on macOS ARM64 or Windows x64. The package
+uses its own 0700 Playwright profile and never opens the user's normal Chrome
+profile.
 
 ## Core workflow
 
@@ -172,8 +173,9 @@ the mode switch alone.
 
 Interactive `auth login` opens the system Google Chrome as a normal, non-Playwright
 process with the dedicated `jlc-cli` profile. Complete credentials and the slider
-manually, then press Command-Q in that dedicated Chrome window to exit its process.
-Closing only the macOS window is not enough. The CLI reopens that same profile
+manually, then fully exit that dedicated Chrome process: on macOS press Command-Q
+(closing only the window is not enough), and on Windows close every window of the
+dedicated Chrome (for example Alt+F4) so it leaves the system tray. The CLI reopens that same profile
 through Playwright and only reports success when the account area, order
 list, and PCB upload page are all accessible. It never reads the user's everyday
 Chrome profile and does not automate or bypass the slider. `--password-stdin`

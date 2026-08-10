@@ -41,8 +41,8 @@ export class LoginPage extends JlcPageObject {
     const user = accountElement ? await this.readUserSummary(accountElement) : undefined;
     let orderPageAccessible = false;
     if (!frameVisible && orderListAccessible && accountVisible) {
-      await this.page.goto(ORDER_PAGE_URL, { waitUntil: 'domcontentloaded' });
-      orderPageAccessible = await this.page.locator('input[type="file"][name="file"]').waitFor({ state: 'attached', timeout: 8_000 }).then(() => true).catch(() => false);
+      await this.fullGoto(ORDER_PAGE_URL);
+      orderPageAccessible = await this.page.locator('input[type="file"][name="file"]').waitFor({ state: 'attached', timeout: 20_000 }).then(() => true).catch(() => false);
     }
     const authenticated = !frameVisible && orderListAccessible && accountVisible && orderPageAccessible;
     return {
@@ -63,7 +63,7 @@ export class LoginPage extends JlcPageObject {
     orderListAccessible: boolean;
     accountElement?: Locator;
   }> {
-    await this.page.goto(ORDER_LIST_URL, { waitUntil: 'domcontentloaded' });
+    await this.fullGoto(ORDER_LIST_URL);
     const heading = this.page.getByRole('heading', { name: /全部订单|PCB未付款订单/ }).first();
     const pcbOrders = this.page.getByText('PCB/FPC订单', { exact: true }).first();
     const search = this.page.getByPlaceholder('文件名 / 订单编号 / 备忘').first();
@@ -83,7 +83,7 @@ export class LoginPage extends JlcPageObject {
   }
 
   private async bootstrapPersistentSso(timeoutMs = 10_000): Promise<boolean> {
-    await this.page.goto(HOME_URL, { waitUntil: 'domcontentloaded' });
+    await this.fullGoto(HOME_URL);
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       const cookies = await this.page.context().cookies(HOME_URL).catch(() => []);
@@ -114,7 +114,7 @@ export class LoginPage extends JlcPageObject {
   }
 
   async openLogin(): Promise<void> {
-    await this.page.goto(HOME_URL, { waitUntil: 'domcontentloaded' });
+    await this.fullGoto(HOME_URL);
     if (await this.page.locator(LOGIN_FRAME).isVisible().catch(() => false)) return;
     const login = this.page.getByText('登录', { exact: true }).first();
     await this.contract('login entry', () => login.click());
@@ -126,18 +126,25 @@ export class LoginPage extends JlcPageObject {
     if (existing.authenticated) return existing;
     await this.openLogin();
     const frame = this.page.frameLocator(LOGIN_FRAME);
-    const otherAccount = frame.getByText('登录其他账号', { exact: true });
-    if (await otherAccount.isVisible().catch(() => false)) await otherAccount.click({ force: true });
-    const accountLogin = frame.getByText('账号登录', { exact: true });
-    if (await accountLogin.isVisible().catch(() => false)) await accountLogin.click({ force: true });
     const account = frame.getByPlaceholder('请输入手机号码 / 客户编号 / 邮箱');
     const secret = frame.getByPlaceholder('请输入登录密码');
+    // The passport SPA hydrates asynchronously inside the iframe, and the password
+    // form may sit behind the "账号登录" tab. "账号登录" now renders as both a <li>
+    // and a <button>, so it must be targeted by role to stay strict-mode safe.
+    const accountLoginTab = frame.getByRole('button', { name: '账号登录', exact: true });
+    await accountLoginTab.or(account).first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined);
+    if (await accountLoginTab.first().isVisible().catch(() => false)) await accountLoginTab.first().click({ force: true });
+    const otherAccount = frame.getByText('登录其他账号', { exact: true }).first();
+    if (await otherAccount.isVisible().catch(() => false)) await otherAccount.click({ force: true });
     await this.contract('account input', () => account.fill(username));
     await this.contract('password input', () => secret.fill(password));
     if ((await account.inputValue()).length === 0) { await account.click(); await this.page.keyboard.insertText(username); }
     if ((await secret.inputValue()).length === 0) { await secret.click(); await this.page.keyboard.insertText(password); }
     if ((await account.inputValue()).length === 0 || (await secret.inputValue()).length === 0) throw new JlcError('AUTH_INTERACTION_REQUIRED', 'The test login form rejected automated text input. Re-run `auth login --headed` and complete login manually.');
-    const submit = frame.getByRole('button', { name: /登录/ }).last();
+    const submitExact = frame.getByRole('button', { name: '登录', exact: true });
+    const submit = (await submitExact.count().catch(() => 0)) > 0
+      ? submitExact.first()
+      : frame.getByRole('button', { name: /登录/ }).last();
     await this.contract('login submit button', () => submit.click({ force: true }));
     await this.page.locator(LOGIN_FRAME).waitFor({ state: 'hidden', timeout: 120_000 }).catch(() => undefined);
     const status = await this.status();

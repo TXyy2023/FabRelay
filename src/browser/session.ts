@@ -1,9 +1,11 @@
-import { open, readFile, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, rm, unlink, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import process from 'node:process';
 import { chromium, type BrowserContext, type Page } from 'playwright';
 import { appPaths, ensureAppPaths } from '../config/paths.js';
 import { JlcError } from '../domain/errors.js';
 import { TEST_BASE_URL } from '../domain/types.js';
+import { fullLoad } from './nav.js';
 import { resolveBrowserRuntime, type BrowserEngine } from './runtime.js';
 
 export interface BrowserSessionOptions {
@@ -121,7 +123,7 @@ export class BrowserSession {
   async goto(pathOrUrl: string): Promise<void> {
     const url = new URL(pathOrUrl, TEST_BASE_URL).toString();
     assertTestEnvironmentUrl(url);
-    await this.page.goto(url, { waitUntil: 'domcontentloaded' });
+    await fullLoad(this.page, url);
   }
 
   async close(): Promise<void> {
@@ -161,7 +163,11 @@ export async function clearBrowserSession(options: Pick<BrowserSessionOptions, '
     await context.clearCookies();
     for (const page of context.pages()) await page.goto('about:blank').catch(() => undefined);
     await context.close();
-    await writeFile(appPaths.browserProfile + '/.logged-out', new Date().toISOString(), { mode: 0o600 });
+    // The JLC SSO session can survive cookie clearing via persisted storage in the
+    // dedicated profile. Remove the whole profile so logout is definitive.
+    await rm(appPaths.browserProfile, { recursive: true, force: true });
+    await mkdir(appPaths.browserProfile, { recursive: true, mode: 0o700 });
+    await writeFile(path.join(appPaths.browserProfile, '.logged-out'), new Date().toISOString(), { mode: 0o600 });
   } finally {
     await release();
   }
@@ -178,8 +184,9 @@ export function persistentContextOptions(
     acceptDownloads: true,
     viewport: { width: 1440, height: 1000 },
     locale: 'zh-CN',
-    // A normal macOS Chrome login encrypts cookies with the real Keychain.
-    // Playwright's mock-keychain defaults would make that same profile appear logged out.
+    // A normal system-Chrome login encrypts cookies with the OS credential store
+    // (macOS Keychain, Windows DPAPI). Playwright's mock-keychain/basic-password-store
+    // defaults would make that same profile appear logged out.
     ignoreDefaultArgs: runtime.engine === 'chrome'
       ? ['--use-mock-keychain', '--password-store=basic']
       : undefined

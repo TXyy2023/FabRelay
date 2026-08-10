@@ -1,14 +1,33 @@
 import { access } from 'node:fs/promises';
+import path from 'node:path';
+import process from 'node:process';
 import { chromium } from 'playwright';
 import { JlcError } from '../domain/errors.js';
 
 export type BrowserEngine = 'auto' | 'chrome' | 'chromium';
 
-const SYSTEM_CHROME_CANDIDATES = [
-  process.env.JLC_CLI_CHROME_PATH,
+const MACOS_CHROME_CANDIDATES = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta',
   '/Applications/Google Chrome Dev.app/Contents/MacOS/Google Chrome Dev'
+];
+
+function windowsChromeCandidates(): string[] {
+  const roots = [process.env.LOCALAPPDATA, process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)']]
+    .filter((value): value is string => Boolean(value));
+  const channels = ['Chrome', 'Chrome Beta', 'Chrome Dev', 'Chrome SxS'];
+  const candidates: string[] = [];
+  for (const channel of channels) {
+    for (const root of roots) {
+      candidates.push(path.join(root, 'Google', channel, 'Application', 'chrome.exe'));
+    }
+  }
+  return candidates;
+}
+
+const SYSTEM_CHROME_CANDIDATES = [
+  process.env.JLC_CLI_CHROME_PATH,
+  ...(process.platform === 'win32' ? windowsChromeCandidates() : MACOS_CHROME_CANDIDATES)
 ].filter((value): value is string => Boolean(value));
 
 export interface ResolvedBrowserRuntime {
