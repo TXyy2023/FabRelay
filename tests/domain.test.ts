@@ -88,6 +88,11 @@ describe('public contracts', () => {
       .toEqual({ password: '<redacted>', nested: { phone: '<redacted>' }, note: 'call 1**********' });
   });
 
+  it('redacts bearer-like tokens but keeps kebab-case diagnostics readable', () => {
+    expect(redactSensitive('session abcdef1234567890abcdef1234567890abcd')).toBe('session <redacted-token>');
+    expect(redactSensitive('rawSignal order-api-unauthenticated')).toBe('rawSignal order-api-unauthenticated');
+  });
+
   it('never persists visible address or contact values in quote summaries', () => {
     expect(redactOrderSummary({ 收货地址: '某省某市详细地址', 联系方式: '张三 13600001234', 阻焊颜色: '绿色' }))
       .toEqual({ 收货地址: '<redacted>', 联系方式: '<redacted>', 阻焊颜色: '绿色' });

@@ -65,7 +65,7 @@ pcb:
     await expect(resolveRequirements([unknown])).rejects.toMatchObject({ code: 'SCHEMA_ERROR' });
   });
 
-  it('allows auto mode to fill only missing values and never override user evidence', async () => {
+  it('allows simple mode to fill only missing values and never override user evidence', async () => {
     const temp = await mkdtemp(path.join(os.tmpdir(), 'jlc-req-'));
     const user = path.join(temp, 'user.md');
     await writeFile(user, '阻焊颜色：绿色\n');
@@ -81,6 +81,8 @@ pcb:
       sourcePath: '<agent-auto-selection>',
       confidence: 'heuristic'
     }));
-    expect(() => assertRequirementsReady(resolved, 'manual')).toThrow(/forbidden in manual mode/i);
+    expect(() => assertRequirementsReady(resolved, 'hard')).toThrow(/forbidden in hard mode/i);
+    // simple mode accepts agent auto-selections; any remaining failure must not be the forbidden-auto one
+    expect(() => assertRequirementsReady(resolved, 'simple')).not.toThrow(/forbidden/i);
   });
 });

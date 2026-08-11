@@ -9,8 +9,8 @@
     "mode": {
       "type": "string",
       "enum": [
-        "manual",
-        "auto"
+        "hard",
+        "simple"
       ]
     },
     "label": {

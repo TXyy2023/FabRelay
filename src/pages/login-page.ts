@@ -1,4 +1,4 @@
-import type { Locator, Page } from 'playwright';
+import type { FrameLocator, Locator, Page } from 'playwright';
 import { JlcError } from '../domain/errors.js';
 import { JlcPageObject } from './base.js';
 
@@ -7,6 +7,7 @@ const ORDER_PAGE_URL = 'https://test.jlc.com/newOrder/#/pcb/newOnlinePlaceOrder'
 const HOME_URL = 'https://test.jlc.com/';
 const LOGIN_FRAME = 'iframe[src*="test-passport.jlc.com/window/login"]';
 const SESSION_COOKIE = 'JLCGROUP_SESSIONID';
+const ALIYUN_SLIDER = '#aliyunCaptcha-sliding-slider';
 
 export interface AuthStatus {
   authenticated: boolean;
@@ -31,29 +32,34 @@ export class LoginPage extends JlcPageObject {
   async status(): Promise<AuthStatus> {
     let persistentSsoRebuilt = false;
     let state = await this.readOrderListState();
-    if (state.frameVisible || !state.orderListAccessible || !state.accountElement) {
+    if (state.frameVisible || !state.orderListAccessible || !state.accountElement || !state.orderApiAuthenticated) {
       persistentSsoRebuilt = await this.bootstrapPersistentSso();
       if (persistentSsoRebuilt) state = await this.readOrderListState();
     }
 
-    const { frameVisible, orderListAccessible, accountElement } = state;
+    const { frameVisible, orderListAccessible, accountElement, orderApiAuthenticated } = state;
     const accountVisible = accountElement !== undefined;
     const user = accountElement ? await this.readUserSummary(accountElement) : undefined;
     let orderPageAccessible = false;
-    if (!frameVisible && orderListAccessible && accountVisible) {
+    if (!frameVisible && orderListAccessible && accountVisible && orderApiAuthenticated) {
       await this.fullGoto(ORDER_PAGE_URL);
       orderPageAccessible = await this.page.locator('input[type="file"][name="file"]').waitFor({ state: 'attached', timeout: 20_000 }).then(() => true).catch(() => false);
     }
-    const authenticated = !frameVisible && orderListAccessible && accountVisible && orderPageAccessible;
+    // The page shell can render while the order subsystem CAS ticket is dead
+    // (every order API then answers 401/403), so a visible account element is not
+    // enough: require an authenticated order-API probe as well.
+    const authenticated = !frameVisible && orderListAccessible && accountVisible && orderPageAccessible && orderApiAuthenticated;
     return {
       authenticated,
       orderPageAccessible,
       orderListAccessible,
       rawSignal: frameVisible
         ? 'login-iframe-visible'
-        : authenticated
-          ? `${persistentSsoRebuilt ? 'persistent-sso-rebuilt-' : ''}account-order-list-and-upload-visible`
-          : 'inconclusive',
+        : !orderApiAuthenticated
+          ? 'order-api-unauthenticated'
+          : authenticated
+            ? `${persistentSsoRebuilt ? 'persistent-sso-rebuilt-' : ''}account-order-list-and-upload-visible`
+            : 'inconclusive',
       user: authenticated ? user : undefined
     };
   }
@@ -61,6 +67,7 @@ export class LoginPage extends JlcPageObject {
   private async readOrderListState(): Promise<{
     frameVisible: boolean;
     orderListAccessible: boolean;
+    orderApiAuthenticated: boolean;
     accountElement?: Locator;
   }> {
     await this.fullGoto(ORDER_LIST_URL);
@@ -79,7 +86,30 @@ export class LoginPage extends JlcPageObject {
       || await search.isVisible().catch(() => false);
     const accountElement = await firstVisible(this.page.locator('.customer-popover-title'))
       ?? await firstVisible(this.page.getByText(/客编/));
-    return { frameVisible, orderListAccessible: !frameVisible && orderListVisible, accountElement };
+    return {
+      frameVisible,
+      orderListAccessible: !frameVisible && orderListVisible,
+      orderApiAuthenticated: await this.orderApiAuthenticated(),
+      accountElement
+    };
+  }
+
+  async orderApiAuthenticated(): Promise<boolean> {
+    return await this.page.evaluate(async () => {
+      try {
+        // The order gateway answers 403 without the XSRF token even when the
+        // CAS session is valid, so the probe must send it like the app does.
+        const xsrf = decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) ?? [])[1] ?? '');
+        const response = await fetch('/api/newOrder/cas-auth/get-current-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': xsrf },
+          body: '{}'
+        });
+        return response.status === 200;
+      } catch {
+        return false;
+      }
+    }).catch(() => false);
   }
 
   private async bootstrapPersistentSso(timeoutMs = 10_000): Promise<boolean> {
@@ -116,40 +146,124 @@ export class LoginPage extends JlcPageObject {
   async openLogin(): Promise<void> {
     await this.fullGoto(HOME_URL);
     if (await this.page.locator(LOGIN_FRAME).isVisible().catch(() => false)) return;
-    const login = this.page.getByText('登录', { exact: true }).first();
-    await this.contract('login entry', () => login.click());
+    // HOME renders several 登录 nodes (some hidden per viewport) and hydrates
+    // asynchronously; the :visible filter both waits and picks a clickable one.
+    // A prior silent-SSO attempt can also leave the group session valid, in
+    // which case HOME renders logged in and has no 登录 entry to click.
+    const login = this.page.locator('a:visible, button:visible').filter({ hasText: /^登录$/ }).first();
+    await login.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => undefined);
+    if (!await login.isVisible().catch(() => false)) return;
+    await login.click();
     await this.contract('login iframe', () => this.page.locator(LOGIN_FRAME).waitFor({ state: 'visible' }));
   }
 
   async loginWithPassword(username: string, password: string): Promise<AuthStatus> {
-    const existing = await this.status();
-    if (existing.authenticated) return existing;
+    // Cheap pre-check on HOME (same origin as the order API): only run the full
+    // status probe when the order API is already answering. Visiting the logged-
+    // out order page first is avoided on purpose — its broken silent-SSO iframe
+    // poisons the subsequent passport login in the same page session.
+    await this.fullGoto(HOME_URL);
+    if (await this.orderApiAuthenticated()) {
+      const existing = await this.status();
+      if (existing.authenticated) return existing;
+    }
     await this.openLogin();
-    const frame = this.page.frameLocator(LOGIN_FRAME);
-    const account = frame.getByPlaceholder('请输入手机号码 / 客户编号 / 邮箱');
-    const secret = frame.getByPlaceholder('请输入登录密码');
-    // The passport SPA hydrates asynchronously inside the iframe, and the password
-    // form may sit behind the "账号登录" tab. "账号登录" now renders as both a <li>
-    // and a <button>, so it must be targeted by role to stay strict-mode safe.
-    const accountLoginTab = frame.getByRole('button', { name: '账号登录', exact: true });
-    await accountLoginTab.or(account).first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined);
-    if (await accountLoginTab.first().isVisible().catch(() => false)) await accountLoginTab.first().click({ force: true });
-    const otherAccount = frame.getByText('登录其他账号', { exact: true }).first();
-    if (await otherAccount.isVisible().catch(() => false)) await otherAccount.click({ force: true });
-    await this.contract('account input', () => account.fill(username));
-    await this.contract('password input', () => secret.fill(password));
-    if ((await account.inputValue()).length === 0) { await account.click(); await this.page.keyboard.insertText(username); }
-    if ((await secret.inputValue()).length === 0) { await secret.click(); await this.page.keyboard.insertText(password); }
-    if ((await account.inputValue()).length === 0 || (await secret.inputValue()).length === 0) throw new JlcError('AUTH_INTERACTION_REQUIRED', 'The test login form rejected automated text input. Re-run `auth login --headed` and complete login manually.');
-    const submitExact = frame.getByRole('button', { name: '登录', exact: true });
-    const submit = (await submitExact.count().catch(() => 0)) > 0
-      ? submitExact.first()
-      : frame.getByRole('button', { name: /登录/ }).last();
-    await this.contract('login submit button', () => submit.click({ force: true }));
-    await this.page.locator(LOGIN_FRAME).waitFor({ state: 'hidden', timeout: 120_000 }).catch(() => undefined);
+    debug(`login: after openLogin iframe=${await this.page.locator(LOGIN_FRAME).isVisible().catch(() => false)}`);
+    if (await this.page.locator(LOGIN_FRAME).isVisible().catch(() => false)) {
+      const frame = this.page.frameLocator(LOGIN_FRAME);
+      const brokenSso = frame.getByText(/redirect_uri/).first();
+      const account = frame.getByPlaceholder('请输入手机号码 / 客户编号 / 邮箱');
+      const secret = frame.getByPlaceholder('请输入登录密码');
+      // The passport SPA hydrates asynchronously inside the iframe, and the password
+      // form may sit behind the "账号登录" tab. "账号登录" now renders as both a <li>
+      // and a <button>, so it must be targeted by role to stay strict-mode safe.
+      const accountLoginTab = frame.getByRole('button', { name: '账号登录', exact: true });
+      await accountLoginTab.or(account).first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined);
+      if (await brokenSso.isVisible().catch(() => false)) {
+        throw new JlcError('AUTH_REQUIRED', 'The passport login frame reports a redirect_uri error and shows no password form. Re-run `auth login --headed` and complete login manually.');
+      }
+      if (await accountLoginTab.first().isVisible().catch(() => false)) await accountLoginTab.first().click({ force: true });
+      const otherAccount = frame.getByText('登录其他账号', { exact: true }).first();
+      if (await otherAccount.isVisible().catch(() => false)) await otherAccount.click({ force: true });
+      await this.contract('account input', () => account.fill(username));
+      await this.contract('password input', () => secret.fill(password));
+      if ((await account.inputValue()).length === 0) { await account.click(); await this.page.keyboard.insertText(username); }
+      if ((await secret.inputValue()).length === 0) { await secret.click(); await this.page.keyboard.insertText(password); }
+      if ((await account.inputValue()).length === 0 || (await secret.inputValue()).length === 0) throw new JlcError('AUTH_INTERACTION_REQUIRED', 'The test login form rejected automated text input. Re-run `auth login --headed` and complete login manually.');
+      const submitExact = frame.getByRole('button', { name: '登录', exact: true });
+      const submit = (await submitExact.count().catch(() => 0)) > 0
+        ? submitExact.first()
+        : frame.getByRole('button', { name: /登录/ }).last();
+      await this.contract('login submit button', () => submit.click({ force: true }));
+      debug('login: submitted credentials');
+      await this.completeSliderIfPresent(frame);
+      await this.page.locator(LOGIN_FRAME).waitFor({ state: 'hidden', timeout: 120_000 }).catch(() => undefined);
+    }
+    // A fresh CAS ticket for the order subsystem is only issued when the order
+    // app reloads after the group session was established inside the iframe.
+    await this.bootstrapOrderCas();
     const status = await this.status();
     if (!status.authenticated) throw new JlcError('AUTH_REQUIRED', 'The test-site login did not reach an authenticated order page.', { details: status });
     return status;
+  }
+
+  async bootstrapOrderCas(rounds = 3): Promise<void> {
+    for (let round = 1; round <= rounds; round += 1) {
+      await this.fullGoto(ORDER_LIST_URL);
+      await this.page.waitForTimeout(4_000);
+      const ok = await this.orderApiAuthenticated();
+      debug(`login: bootstrap round ${round} orderApi=${ok}`);
+      if (ok) return;
+      const frame = this.page.locator(LOGIN_FRAME);
+      if (await frame.isVisible().catch(() => false)) {
+        await frame.waitFor({ state: 'hidden', timeout: 20_000 }).catch(() => undefined);
+      }
+    }
+  }
+
+  async completeSliderIfPresent(frame: FrameLocator, attempts = 4): Promise<void> {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      if (!await this.page.locator(LOGIN_FRAME).isVisible().catch(() => false)) return;
+      const slider = frame.locator(ALIYUN_SLIDER).first();
+      const appeared = await slider.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true).catch(() => false);
+      if (!appeared) {
+        // No slider: the iframe may still finish the login on its own.
+        const gone = await this.page.locator(LOGIN_FRAME).waitFor({ state: 'hidden', timeout: 15_000 }).then(() => true).catch(() => false);
+        debug(`login: attempt ${attempt} no slider; iframe gone=${gone}`);
+        if (gone) return;
+        continue;
+      }
+      await this.dragSlider(frame, slider, attempt);
+      await this.page.waitForTimeout(3_500);
+      debug(`login: attempt ${attempt} dragged; iframe visible=${await this.page.locator(LOGIN_FRAME).isVisible().catch(() => false)}`);
+      if (!await this.page.locator(LOGIN_FRAME).isVisible().catch(() => false)) return;
+      if (!await frame.locator(ALIYUN_SLIDER).first().isVisible().catch(() => false)) return;
+    }
+    if (await frame.locator(ALIYUN_SLIDER).first().isVisible().catch(() => false)) {
+      throw new JlcError('AUTH_INTERACTION_REQUIRED', 'Slider verification could not be completed automatically. Use `auth login --headed` to finish login manually.');
+    }
+  }
+
+  async dragSlider(frame: FrameLocator, slider: Locator, seed: number): Promise<void> {
+    const box = await slider.boundingBox();
+    if (!box) return;
+    const trackWidth = await frame.locator('#aliyunCaptcha-sliding-left')
+      .evaluate((element) => (element.parentElement ?? element).getBoundingClientRect().width)
+      .catch(() => 0);
+    if (trackWidth <= box.width) return;
+    const startX = box.x + box.width / 2;
+    const startY = box.y + box.height / 2;
+    const distance = trackWidth - box.width;
+    await this.page.mouse.move(startX - 3, startY + 1);
+    await this.page.mouse.down();
+    await this.page.waitForTimeout(90);
+    for (const point of buildSliderTrajectory(distance, seed)) {
+      await this.page.mouse.move(startX + point.dx, startY + point.dy);
+      await this.page.waitForTimeout(point.waitMs);
+    }
+    await this.page.mouse.move(startX + distance, startY);
+    await this.page.waitForTimeout(60);
+    await this.page.mouse.up();
   }
 
   async waitForManualLogin(timeoutMs = 5 * 60_000): Promise<AuthStatus> {
@@ -204,6 +318,33 @@ async function popoverCompanyName(popover: Locator): Promise<string | undefined>
   return undefined;
 }
 
+export interface SliderPoint {
+  dx: number;
+  dy: number;
+  waitMs: number;
+}
+
+/**
+ * Builds a human-like drag trajectory: accelerate, cruise, decelerate with a
+ * slight vertical wobble. Pure so the shape is unit-testable.
+ */
+export function buildSliderTrajectory(distance: number, seed = 7): SliderPoint[] {
+  const points: SliderPoint[] = [];
+  const steps = 34;
+  for (let index = 1; index <= steps; index += 1) {
+    const t = index / steps;
+    const eased = t < 0.7
+      ? (t / 0.7) ** 2 * 0.85
+      : 0.85 + (1 - (1 - (t - 0.7) / 0.3) ** 2) * 0.15;
+    points.push({
+      dx: distance * Math.min(eased, 1),
+      dy: Math.sin(t * (15 + (seed % 5))) * 1.2 + ((index + seed) % 7 === 0 ? 0.8 : 0),
+      waitMs: 6 + (((index + seed) * 7) % 13)
+    });
+  }
+  return points;
+}
+
 export function normalizeCompanyCandidate(value: string): string | undefined {
   const normalized = value.replace(/\s+/g, ' ').trim()
     .replace(/^(?:当前客编归属公司(?:名称)?|客编归属公司(?:名称)?|归属公司(?:名称)?|所属公司(?:名称)?|公司名称) *[：:]?\s*/, '');
@@ -231,6 +372,10 @@ export function parseUserProfileTexts(texts: readonly string[]): AuthenticatedUs
     companyName,
     source: 'visible-page'
   };
+}
+
+function debug(message: string): void {
+  if (process.env.JLC_CLI_DEBUG) process.stderr.write(`[jlc-debug] ${message}\n`);
 }
 
 function labelledValue(lines: string[], labelPattern: string): string | undefined {

@@ -21,7 +21,7 @@ import { StateDatabase } from '../storage/database.js';
 
 const ModeConfigurationSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION).default(SCHEMA_VERSION),
-  mode: AgentModeSchema.default('manual'),
+  mode: AgentModeSchema.default('hard'),
   globalPreferences: z.record(z.string(), ModePreferenceValueSchema).default({}),
   disclaimer: DisclaimerAcceptanceSchema.optional()
 }).passthrough();
@@ -54,16 +54,16 @@ export const PRODUCTION_PARAMETER_KEYS = [
 
 export function parseAgentMode(value: string): AgentMode {
   const parsed = AgentModeSchema.safeParse(value.toLowerCase());
-  if (!parsed.success) throw new JlcError('INVALID_ARGUMENT', 'Mode must be manual or auto.');
+  if (!parsed.success) throw new JlcError('INVALID_ARGUMENT', 'Mode must be hard or simple (manual and auto are accepted legacy aliases).');
   return parsed.data;
 }
 
 export function nextAgentMode(mode: AgentMode): AgentMode {
-  return mode === 'manual' ? 'auto' : 'manual';
+  return mode === 'hard' ? 'simple' : 'hard';
 }
 
 export function modeLabel(mode: AgentMode): string {
-  return mode === 'manual' ? '严谨模式' : 'AI 选择模式';
+  return mode === 'hard' ? '严谨模式' : 'AI 选择模式';
 }
 
 export async function readModeConfiguration(configFile = appPaths.configFile): Promise<ModeConfiguration> {
@@ -130,7 +130,7 @@ export function createAgentModeContext(
     label: modeLabel(configuration.mode),
     globalPreferences: configuration.globalPreferences,
     historySuggestions,
-    precedence: configuration.mode === 'manual'
+    precedence: configuration.mode === 'hard'
       ? ['user-evidence', 'gerber-fact']
       : ['user-evidence', 'gerber-fact', 'global-preference', 'order-history', 'agent-engineering-judgment'],
     prompt: buildModePrompt(configuration.mode, configuration.globalPreferences, historySuggestions),
@@ -176,7 +176,7 @@ export function buildModePrompt(
   const shared = `You are operating jlc-cli in ${mode} mode (${modeLabel(mode)}).\n` +
     'This mode governs PCB production-parameter selection only. It never authorizes order submission, payment, cancellation, SMT, PCBA, or stencil ordering. Payment is a separate prepare, human-approval, and execute workflow.\n' +
     'Always preserve explicit user values, reject conflicts, keep manual order confirmation, and require the signed human approval before creating a test order.\n';
-  if (mode === 'manual') {
+  if (mode === 'hard') {
     return shared +
       'For every production parameter, require evidence from the user prompt, a user-provided requirements document, or a Gerber-derived fact.\n' +
       'For PDF/XLSX evidence, extract it locally and normalize the cited values into a version 1 JSON/YAML/Markdown requirements file before calling jlc-cli.\n' +
@@ -195,18 +195,22 @@ export function buildModePrompt(
 export function buildAgentSkillMarkdown(): string {
   return `---
 name: jlc-pcb-ordering
-description: Operate jlc-cli for Gerber inspection, PCB requirement resolution, Playwright quoting, human approval, test-order creation, and order tracking. Use whenever an agent handles a JLC PCB order or chooses PCB production parameters; always load the persisted manual or auto selection policy first.
+description: Operate jlc-cli for Gerber inspection, PCB requirement resolution, Playwright quoting, human approval, test-order creation, order tracking, and guarded order actions. Use whenever an agent handles a JLC PCB order or chooses PCB production parameters; always load the persisted hard or simple selection policy first.
 ---
 
 # JLC PCB ordering
 
 Run \`jlc-cli mode context --json\` before resolving requirements and again if the user changes mode. Treat its \`prompt\`, preferences, and completed-order history as the active selection policy.
 
+## First-run warning relay (mandatory)
+
+Before the first jlc-cli command of a session, check \`jlc-cli disclaimer status --json\`. If \`required\` is true, run \`jlc-cli disclaimer show\` and relay the full warning text to the user verbatim: jlc-cli is a third-party tool, and every operation is executed by, and at the sole risk of, the user. Continue only after the user explicitly accepts; a human then runs \`jlc-cli disclaimer accept\`. Never accept on the user's behalf.
+
 ## Resolve production parameters
 
 - Preserve every explicit user value and block conflicting user evidence.
-- In \`manual\`, require user prompt, user document, or Gerber evidence for every production parameter. Ask for anything missing.
-- In \`auto\`, fill only missing production parameters using the context precedence. Record key, value, source, and rationale for every autonomous choice; use \`--auto-set\` so the CLI prevents overriding user evidence.
+- In \`hard\`, require user prompt, user document, or Gerber evidence for every production parameter. Ask for anything missing.
+- In \`simple\`, fill only missing production parameters using the context precedence. Record key, value, source, and rationale for every autonomous choice; use \`--auto-set\` so the CLI prevents overriding user evidence.
 - Read PDF/XLSX evidence with local document tools, then normalize cited values to a version 1 JSON/YAML/Markdown requirements file accepted by jlc-cli.
 - Never silently accept webpage defaults. Query \`jlc-cli pcb options --json\` when current site choices matter.
 
@@ -220,8 +224,9 @@ Run \`jlc-cli mode context --json\` before resolving requirements and again if t
 6. Verify the success page and order-list readback.
 7. Read the file-review result, production nodes, shipping, and delivery state from the visible pages.
 8. If an order is awaiting payment, prepare a payment snapshot. Execute balance payment only with the separately signed, unexpired payment approval and action-time user authorization.
+9. Guarded order actions (memo, follow, labels, urge, downloads) are listed by \`jlc-cli orders actions <order-id>\`. Dangerous actions (delete, pause production, block reorder, change shipping, template changes, re-upload reorder) additionally require \`--confirm <order-id>\` typed by the caller.
 
-Never pay automatically or infer payment authority from this mode, a quote approval, or an order approval. Never modify, cancel, or delete an order. Never order PCBA, SMT, or a stencil. Never bypass login or CAPTCHA. Keep manual order confirmation enabled.
+Never pay automatically or infer payment authority from this mode, a quote approval, or an order approval. Never order PCBA, SMT, or a stencil. Never bypass login or CAPTCHA. Keep manual order confirmation enabled.
 `;
 }
 

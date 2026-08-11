@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "orderId": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "reorder",
+        "print_contract",
+        "delivery_note",
+        "block_reorder",
+        "edit_memo",
+        "delete_order",
+        "follow",
+        "unfollow",
+        "change_shipping",
+        "download_qa_certificate",
+        "pause_production",
+        "share_to_yingchuang",
+        "reselect_template",
+        "modify_template",
+        "add_label",
+        "remove_label",
+        "urge_review",
+        "urge_shipment"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "failed",
+        "unknown"
+      ]
+    },
+    "detail": {
+      "type": "string"
+    },
+    "dialogText": {
+      "type": "string"
+    },
+    "artifactPaths": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rawStatus": {
+      "type": "string"
+    },
+    "capturedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "orderId",
+    "action",
+    "status",
+    "artifactPaths",
+    "capturedAt"
+  ],
+  "additionalProperties": false
+}

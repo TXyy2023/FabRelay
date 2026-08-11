@@ -1,6 +1,6 @@
 {
   "name": "jlc-com-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Playwright-first CLI and TUI for the JLC PCB ordering workflow",
   "type": "module",
   "bin": {

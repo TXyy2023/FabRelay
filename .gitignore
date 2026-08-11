@@ -6,3 +6,7 @@ coverage/
 artifacts/
 playwright-report/
 test-results/
+.test-login
+*.secret
+output/
+tmp/

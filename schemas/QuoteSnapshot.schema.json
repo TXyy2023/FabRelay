@@ -33,11 +33,11 @@
       "maxLength": 64
     },
     "selectionMode": {
-      "default": "manual",
+      "default": "hard",
       "type": "string",
       "enum": [
-        "manual",
-        "auto"
+        "hard",
+        "simple"
       ]
     },
     "requirementEvidence": {

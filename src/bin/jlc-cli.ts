@@ -12,7 +12,9 @@ import { JlcError } from '../domain/errors.js';
 import { inspectGerberZip } from '../gerber/inspect.js';
 import { LoginPage } from '../pages/login-page.js';
 import {
+  AGENT_RELAY_NOTICE,
   DISCLAIMER_NOTICE,
+  DISCLAIMER_SHOW_TEXT,
   disclaimerStatus,
   resetDisclaimer
 } from '../disclaimer/index.js';
@@ -31,6 +33,9 @@ import { runDisclaimerPrompt, startTui } from '../tui/app.js';
 import { approveQuote } from '../workflows/approval.js';
 import { createOrder } from '../workflows/order-create.js';
 import { auditOrder, listOrders, showOrder, watchOrder } from '../workflows/orders.js';
+import { listOrderActions, runOrderAction } from '../workflows/order-actions.js';
+import { ORDER_ACTION_DEFINITIONS } from '../workflows/order-action-registry.js';
+import type { OrderActionId } from '../domain/types.js';
 import { createQuote, readCurrentOptions } from '../workflows/quote.js';
 import { listPlatformMessages } from '../workflows/messages.js';
 import { approvePayment, executePayment, preparePayment } from '../workflows/payment.js';
@@ -83,7 +88,7 @@ function browserOptions(command: Command): BrowserSessionOptions {
 const program = new Command()
   .name('jlc-cli')
   .description('Playwright-first CLI for the JLC PCB test-order workflow')
-  .version('0.2.0')
+  .version('0.3.0')
   .option('--json', 'write a stable JSON envelope')
   .addOption(new NoInputOption('--no-input', 'disable interactive prompts'))
   .option('--input <source>', 'read structured command input; use - for stdin')
@@ -146,12 +151,12 @@ auth.command('logout').action(async (_options, command) => {
   writeSuccess(outputContext, { loggedOut: true });
 });
 
-const disclaimer = program.command('disclaimer').description('show or acknowledge the first-run unofficial-tool warning');
+const disclaimer = program.command('disclaimer').description('show or acknowledge the first-run third-party-tool warning');
 disclaimer.command('status').action(async () => writeSuccess(outputContext, await disclaimerStatus()));
-disclaimer.command('show').action(() => writeSuccess(outputContext, DISCLAIMER_NOTICE));
+disclaimer.command('show').action(() => writeSuccess(outputContext, DISCLAIMER_SHOW_TEXT));
 disclaimer.command('accept').action(async () => {
   const accepted = await runDisclaimerPrompt();
-  if (!accepted) throw new JlcError('APPROVAL_REQUIRED', '未接受非官方工具警告，已取消运行。');
+  if (!accepted) throw new JlcError('APPROVAL_REQUIRED', '未接受第三方工具警告，已取消运行。');
   writeSuccess(outputContext, await disclaimerStatus());
 });
 disclaimer.command('reset').description('show the warning again on the next run').action(async () => {
@@ -183,7 +188,7 @@ modeCommand.command('skill').description('print or write an Agent SKILL.md')
     writeSuccess(outputContext, { file: outputPath, mode: (await readModeConfiguration()).mode });
   });
 
-const preference = modeCommand.command('preference').description('manage global production preferences used by auto mode');
+const preference = modeCommand.command('preference').description('manage global production preferences used by simple mode');
 preference.command('list').action(async () => {
   const configuration = await readModeConfiguration();
   writeSuccess(outputContext, { mode: configuration.mode, globalPreferences: configuration.globalPreferences });
@@ -200,7 +205,7 @@ preference.command('unset <key>').action(async (key: string) => {
 const requirements = program.command('requirements');
 requirements.command('validate <files...>')
   .option('--set <key=value>', 'resolve a parameter explicitly', collect, [])
-  .option('--auto-set <key=value>', 'fill a missing parameter as an auto-mode Agent decision', collect, [])
+  .option('--auto-set <key=value>', 'fill a missing parameter as a simple-mode Agent decision', collect, [])
   .action(async (files: string[], options: { set: string[]; autoSet: string[] }) => {
     const result = await resolveRequirements(files, options.set, options.autoSet);
     assertRequirementsReady(result, (await readModeConfiguration()).mode);
@@ -218,7 +223,7 @@ pcb.command('options').action(async (_options, command) => writeSuccess(outputCo
 pcb.command('quote <gerber.zip>')
   .option('-r, --requirements <file>', 'requirement file; repeat for multiple files', collect, [])
   .option('--set <key=value>', 'resolve a parameter explicitly', collect, [])
-  .option('--auto-set <key=value>', 'fill a missing parameter as an auto-mode Agent decision', collect, [])
+  .option('--auto-set <key=value>', 'fill a missing parameter as a simple-mode Agent decision', collect, [])
   .action(async (file: string, options: { requirements: string[]; set: string[]; autoSet: string[] }, command: Command) => {
     if (options.requirements.length === 0 && options.set.length === 0 && options.autoSet.length === 0) {
       throw new JlcError('INVALID_ARGUMENT', 'Provide --requirements and/or explicit --set/--auto-set evidence for the PCB parameters.');
@@ -294,6 +299,89 @@ payment.command('execute')
     }));
   });
 
+// ---- orders <action>: the 18 "更多操作" commands. Confirmation semantics and
+// site behavior live in src/workflows/order-action-registry.ts / order-actions.ts.
+interface OrderActionCliOptions {
+  confirm?: string;
+  memo?: string;
+  text?: string;
+  label?: string;
+  addressId?: string;
+  template?: string;
+  file?: string;
+}
+
+function runOrderActionCommand(action: OrderActionId) {
+  return async (orderId: string, options: OrderActionCliOptions, command: Command) => {
+    writeSuccess(outputContext, await runOrderAction(orderId, action, {
+      ...browserOptions(command),
+      confirm: options.confirm,
+      memo: options.memo ?? options.text,
+      label: options.label,
+      addressId: options.addressId,
+      template: options.template,
+      text: options.text,
+      file: options.file,
+      outputDir: globals(command).output
+    }));
+  };
+}
+
+function confirmOption(command: Command): Command {
+  return command.option('--confirm <order-id>', 'confirm the action by repeating the exact order ID');
+}
+
+orders.command('actions <order-id>').description('list which of the 18 order operations are visible for this order').action(async (id: string, _options, command: Command) => {
+  writeSuccess(outputContext, await listOrderActions(id, browserOptions(command)));
+});
+confirmOption(orders.command('memo <order-id>').description('edit the order memo (编辑备忘录)')
+  .option('--memo <text>', 'memo content')
+  .option('--text <text>', 'alias of --memo'))
+  .action(runOrderActionCommand('edit_memo'));
+confirmOption(orders.command('delete <order-id>').description('delete the order (删除订单)'))
+  .action(runOrderActionCommand('delete_order'));
+confirmOption(orders.command('follow <order-id>').description('follow the order (关注订单)'))
+  .action(runOrderActionCommand('follow'));
+confirmOption(orders.command('unfollow <order-id>').description('unfollow the order (取消关注订单)'))
+  .action(runOrderActionCommand('unfollow'));
+confirmOption(orders.command('block-reorder <order-id>').description('mark the order as no-reorder (标记禁止返单)'))
+  .action(runOrderActionCommand('block_reorder'));
+confirmOption(orders.command('shipping <order-id>').description('change the shipping info (修改收货信息)')
+  .requiredOption('--address-id <id>', 'visible address entry to select in the shipping dialog'))
+  .action(runOrderActionCommand('change_shipping'));
+orders.command('certificate <order-id>').description('download the quality assurance certificate (下载质量保证书)')
+  .action(runOrderActionCommand('download_qa_certificate'));
+confirmOption(orders.command('pause <order-id>').description('pause production (暂停生产)'))
+  .action(runOrderActionCommand('pause_production'));
+confirmOption(orders.command('share <order-id>').description('share the order to 硬创社 (分享到硬创社)'))
+  .action(runOrderActionCommand('share_to_yingchuang'));
+const template = orders.command('template').description('order template operations');
+confirmOption(template.command('reselect <order-id>').description('reselect the order template (重选模板)')
+  .option('--template <name>', 'visible template name to select'))
+  .action(runOrderActionCommand('reselect_template'));
+confirmOption(template.command('modify <order-id>').description('modify the template content (修改模板内容)')
+  .option('--text <content>', 'new template content'))
+  .action(runOrderActionCommand('modify_template'));
+const label = orders.command('label').description('order label operations');
+confirmOption(label.command('add <order-id>').description('add a label (添加标签)')
+  .requiredOption('--label <label>', 'label to add'))
+  .action(runOrderActionCommand('add_label'));
+confirmOption(label.command('remove <order-id>').description('clear ALL labels of the order (移除标签, site semantics)')
+  .option('--label <label>', 'accepted for symmetry; the site clears every label'))
+  .action(runOrderActionCommand('remove_label'));
+const urge = orders.command('urge').description('urge the order along');
+confirmOption(urge.command('review <order-id>').description('urge file review (催审单)'))
+  .action(runOrderActionCommand('urge_review'));
+confirmOption(urge.command('ship <order-id>').description('urge shipment (催发货)'))
+  .action(runOrderActionCommand('urge_shipment'));
+orders.command('contract <order-id>').description('print/export the order contract (打印合同)')
+  .action(runOrderActionCommand('print_contract'));
+orders.command('delivery-note <order-id>').description('download the electronic delivery note and receipt (电子送货单及收据)')
+  .action(runOrderActionCommand('delivery_note'));
+confirmOption(orders.command('reorder <order-id>').description('re-upload files and reorder; never auto-submits (重新上传文件下单)')
+  .requiredOption('--file <gerber.zip>', 'new Gerber ZIP to upload'))
+  .action(runOrderActionCommand('reorder'));
+
 const messages = program.command('messages').description('read platform and inbox messages from the visible test-site panel');
 messages.command('list').option('--limit <n>', 'maximum messages', '20').action(async (options: { limit: string }, command: Command) => {
   writeSuccess(outputContext, await listPlatformMessages({ ...browserOptions(command), limit: positiveInteger(options.limit, '--limit') }));
@@ -314,10 +402,15 @@ async function main(): Promise<void> {
     }
     if (!disclaimerExempt(rawArgs) && (await disclaimerStatus()).required) {
       if (!process.stdin.isTTY || !process.stdout.isTTY) {
-        throw new JlcError('APPROVAL_REQUIRED', '首次使用必须在交互式终端阅读并确认非官方工具警告。请运行 `jlc-cli disclaimer accept`。');
+        throw new JlcError('APPROVAL_REQUIRED', '首次使用必须由用户在交互式终端阅读并确认第三方工具警告。Agent 请先将警告原文转述给用户。请运行 `jlc-cli disclaimer accept`。', {
+          details: {
+            notice: DISCLAIMER_NOTICE,
+            agentRelay: AGENT_RELAY_NOTICE
+          }
+        });
       }
       if (!await runDisclaimerPrompt()) {
-        throw new JlcError('APPROVAL_REQUIRED', '未接受非官方工具警告，已取消运行。');
+        throw new JlcError('APPROVAL_REQUIRED', '未接受第三方工具警告，已取消运行。');
       }
     }
     await program.parseAsync(process.argv);

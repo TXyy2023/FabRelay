@@ -253,10 +253,10 @@ export async function resolveRequirements(
   });
 }
 
-export function assertRequirementsReady(resolved: ResolvedPcbSpec, mode: AgentMode = 'manual'): void {
+export function assertRequirementsReady(resolved: ResolvedPcbSpec, mode: AgentMode = 'hard'): void {
   const autonomous = resolved.evidence.filter((item) => item.sourcePath === '<agent-auto-selection>');
-  if (mode === 'manual' && autonomous.length > 0) {
-    throw new JlcError('REQUIREMENT_CONFLICT', 'Agent auto-selections are forbidden in manual mode.', {
+  if (mode === 'hard' && autonomous.length > 0) {
+    throw new JlcError('REQUIREMENT_CONFLICT', 'Agent auto-selections are forbidden in hard mode.', {
       details: { mode, keys: autonomous.map((item) => item.key), resolution: 'Obtain user or Gerber evidence and pass it as a requirements file or explicit --set.' }
     });
   }
@@ -277,7 +277,7 @@ export function assertRequirementsReady(resolved: ResolvedPcbSpec, mode: AgentMo
   ];
   const missing = required.filter((key) => resolved.spec[key] === undefined || resolved.spec[key] === '');
   if (missing.length > 0) {
-    const resolution = mode === 'manual'
+    const resolution = mode === 'hard'
       ? 'Every missing production parameter requires user prompt, user-document, or Gerber evidence. Ask the user; do not use preferences, history, or defaults.'
       : 'Call `jlc-cli mode context --json`; resolve missing production parameters by policy and pass every autonomous scalar choice through --auto-set (or a generated version 1 requirements file with provenance).';
     throw new JlcError('REQUIREMENT_CONFLICT', `Required PCB parameters are missing in ${mode} mode.`, {

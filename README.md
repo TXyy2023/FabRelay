@@ -23,7 +23,7 @@ the CLI from an agent.
 In the terminal UI, type `/` to open the command palette. Use `↑/↓` to move,
 `Tab` to complete, `Enter` to select or run, and `Esc` to close it. When the
 palette is closed, `↑/↓` recalls up to 50 commands from the current session.
-Use `Shift+Tab` to cycle between the persisted manual and auto Agent modes; the
+Use `Shift+Tab` to cycle between the persisted hard and simple Agent modes; the
 active mode is always shown above and below the command box.
 After login, the TUI reads the visible account area and shows the user name,
 customer code, and the company that owns the current customer code. The TUI
@@ -88,19 +88,55 @@ jlc-cli pcb approval create
 jlc-cli pcb order create
 jlc-cli orders list|show|audit|watch
 jlc-cli orders payment|pay prepare|approval|execute
+jlc-cli orders actions <order-id>
+jlc-cli orders memo|delete|follow|unfollow <order-id> ...
+jlc-cli orders block-reorder|shipping|pause|share <order-id> ...
+jlc-cli orders certificate|contract|delivery-note <order-id>
+jlc-cli orders template reselect|modify <order-id> ...
+jlc-cli orders label add|remove <order-id> --label <label>
+jlc-cli orders urge review|ship <order-id>
+jlc-cli orders reorder <order-id> --file <gerber.zip>
 jlc-cli messages list
 jlc-cli xiaozhi question <question...>
 jlc-cli schema <command-or-public-type>
 ```
 
-The initial release uses the `test.jlc.com` order pages and only the test site's
-own embedded message/嘉小智 surfaces, forces manual order confirmation, disables
-SMT and steel mesh, and never pays automatically, modifies, cancels, or deletes
-an order. Supported order readback covers file review, production nodes,
-shipping, and delivered/received status without guessing unknown page text.
+The CLI uses the `test.jlc.com` order pages and only the test site's own embedded
+message/嘉小智 surfaces, forces manual order confirmation, disables SMT and steel
+mesh, and never pays automatically. Supported order readback covers file review,
+production nodes, shipping, and delivered/received status without guessing unknown
+page text.
 
-TUI commands include `/audit <order-id>`, `/pay <order-id>` (snapshot only),
-`/messages`, and `/xiaozhi <question>`. The 嘉小智 panel shows the submitted
+### Order operations (18)
+
+`jlc-cli orders actions <order-id> --json` reports which of the 18 order
+operations are visible in the order card's 更多 menu: re-upload reorder, print
+contract, delivery note/receipt download, block reorder, edit memo, delete,
+follow/unfollow, change shipping info, QA certificate download, pause production,
+share to 硬创社, reselect/modify template, add/remove label, urge review, and urge
+shipment.
+
+Safety tiers:
+
+- Read-only exports (`contract`, `delivery-note`, `certificate`) run directly.
+- Reversible writes (`memo`, `follow`, `unfollow`, `label add|remove`,
+  `urge review|ship`, `share`) need an interactive confirmation or
+  `--confirm <order-id>`.
+- Dangerous writes (`delete`, `pause`, `block-reorder`, `shipping`,
+  `template reselect|modify`, `reorder`) are refused unless `--confirm` repeats
+  the exact order ID. `reorder` uploads the new file into the reorder flow and
+  never auto-submits an order.
+
+Site semantics learned from the live test site: the 更多操作 panel lists all 18
+entries with `*` hints for the ones the current order state blocks — blocked
+entries are reported as `PAGE_BUSINESS_ERROR` without being clicked. `label add`
+toggles the account's existing label groups (create groups via 管理标签分组),
+while `label remove` clears **all** labels of the order after a confirm box.
+`delete` is verified by re-querying the order list; server-side rejections such
+as 具有实收金额的订单不能删除 are surfaced as `failed` with the site's message.
+
+TUI commands include `/audit <order-id>`, `/actions <order-id>`,
+`/pay <order-id>` (snapshot only), `/messages`, and `/xiaozhi <question>`. The 嘉小智 panel shows the submitted
 question and the stable page response; it does not call an external model or a
 private API in place of the website iframe.
 
@@ -108,11 +144,15 @@ See `jlc-cli schema <command>` for the public JSON contracts.
 
 ## First-run warning
 
-The first interactive launch shows a Chinese unofficial-tool warning before the
+The first interactive launch shows a Chinese third-party-tool warning before the
 TUI or any account/order workflow can run. `否，退出` is selected by default.
 Only an explicit interactive acceptance stores a local receipt containing the
 notice version, SHA-256 fingerprint, and acceptance time; no user identity is
 recorded. If the warning text changes, it must be accepted again.
+
+The warning states that jlc-cli is a **third-party tool** — not officially
+published, authorized, endorsed, or maintained by JLC — and that **every
+operation is executed by, and at the sole risk of, the user**.
 
 Non-interactive Agents are blocked until a human runs:
 
@@ -120,39 +160,47 @@ Non-interactive Agents are blocked until a human runs:
 jlc-cli disclaimer accept
 ```
 
+When an Agent is blocked this way, the JSON error envelope carries both the full
+warning text and an `agentRelay` instruction: the Agent must relay the warning to
+the user verbatim and continue only after the user explicitly accepts. The same
+relay text is printed by `jlc-cli disclaimer show` and embedded in the generated
+SKILL.md.
+
 `--help`, `--version`, schemas, the warning commands, and browser installation/
-diagnostics remain available before acceptance. This warning states that the CLI
-is not officially published, authorized, endorsed, or maintained by JLC and that
-the user assumes the consequences of using it. It does not weaken test-site-only,
-human-approval, manual-confirmation, or no-automatic-payment safeguards.
+diagnostics remain available before acceptance. This warning does not weaken
+test-site-only, human-approval, manual-confirmation, or no-automatic-payment
+safeguards.
 
 ## AI Agent production-selection modes
 
-The safe default is `manual`:
+The safe default is `hard`:
 
 ```bash
-jlc-cli mode set manual
+jlc-cli mode set hard
 jlc-cli mode status --json
 ```
 
-Manual mode requires user-prompt, user-document, or Gerber evidence for every
-production parameter. An Agent must ask for missing evidence and cannot fill it
-from habits, preferences, engineering defaults, or webpage defaults.
+`hard` mode (严谨模式) requires user-prompt, user-document, or Gerber evidence
+for every production parameter. An Agent must ask for missing evidence and cannot
+fill it from habits, preferences, engineering defaults, or webpage defaults.
 
-Auto mode preserves every explicit user value, then lets the calling AI Agent
-resolve only missing production parameters from Gerber facts, global preferences,
-local non-cancelled order history, current site options, and finally documented
-engineering judgment:
+`simple` mode (AI 选择模式) preserves every explicit user value, then lets the
+calling AI Agent resolve only missing production parameters from Gerber facts,
+global preferences, local non-cancelled order history, current site options, and
+finally documented engineering judgment:
 
 ```bash
-jlc-cli mode set auto
+jlc-cli mode set simple
 jlc-cli mode preference set boardThicknessMm=1.6
 jlc-cli mode preference set 'processOptions.产品类型=工业类'
 jlc-cli mode context --json
 ```
 
+The legacy names `manual` and `auto` are still accepted as aliases for `hard`
+and `simple`; existing config files are migrated automatically.
+
 Agents pass scalar autonomous choices with `--auto-set key=value`. This channel
-can only fill a missing value and is rejected in manual mode; it cannot replace
+can only fill a missing value and is rejected in hard mode; it cannot replace
 user-document evidence or an explicit user `--set`. Page-specific
 `processOptions` should be placed in the generated requirements file.
 
@@ -169,16 +217,25 @@ still block conflicts and webpage defaults, require human quote approval, keep
 manual order confirmation, and never authorize payment or final submission by
 the mode switch alone.
 
-### Slider verification login
+### Login: automated password or manual headed
 
-Interactive `auth login` opens the system Google Chrome as a normal, non-Playwright
-process with the dedicated `jlc-cli` profile. Complete credentials and the slider
-manually, then fully exit that dedicated Chrome process: on macOS press Command-Q
-(closing only the window is not enough), and on Windows close every window of the
-dedicated Chrome (for example Alt+F4) so it leaves the system tray. The CLI reopens that same profile
-through Playwright and only reports success when the account area, order
-list, and PCB upload page are all accessible. It never reads the user's everyday
-Chrome profile and does not automate or bypass the slider. `--password-stdin`
-remains available only for authorized test accounts that do not require interactive
-verification. The manual window times out after ten minutes by default; use
-`--timeout <ms>` to choose a different limit.
+`auth login --username <name> --password-stdin` performs a fully automated login
+for authorized test accounts: it fills the passport account form, completes the
+drag-slider verification with a human-like trajectory, and then reloads the order
+pages until the order subsystem issues its CAS ticket. `auth status --json`
+probes the order API (with the XSRF token, like the site itself) and reports
+`authenticated: false` with `rawSignal: order-api-unauthenticated` when only the
+page shell would render.
+
+Interactive `auth login` (no credentials) opens the system Google Chrome as a
+normal, non-Playwright process with the dedicated `jlc-cli` profile. Complete
+credentials and any verification manually, then fully exit that dedicated Chrome
+process: on macOS press Command-Q (closing only the window is not enough), and on
+Windows close every window of the dedicated Chrome (for example Alt+F4) so it
+leaves the system tray. The CLI reopens that same profile through Playwright and
+only reports success when the account area, order list, order API, and PCB upload
+page are all accessible. It never reads the user's everyday Chrome profile. If
+automated slider verification is rejected, the CLI reports
+`AUTH_INTERACTION_REQUIRED` and the headed flow remains the fallback. The manual
+window times out after ten minutes by default; use `--timeout <ms>` to choose a
+different limit.

@@ -81,6 +81,9 @@ export class BrowserSession {
     this.timeoutMs = timeoutMs;
     this.releaseLock = releaseLock;
     this.engine = engine;
+    void context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    }).catch(() => undefined);
     page.setDefaultTimeout(timeoutMs);
     page.setDefaultNavigationTimeout(timeoutMs);
     page.on('request', (request) => {
@@ -182,6 +185,10 @@ export function persistentContextOptions(
     headless: !(options.headed ?? false),
     slowMo: options.slowMo,
     acceptDownloads: true,
+    // Keeps automated password login (an authorized test-account flow) from
+    // being fingerprinted as a bot by the passport captcha purely on the
+    // default automation blink feature.
+    args: ['--disable-blink-features=AutomationControlled'],
     viewport: { width: 1440, height: 1000 },
     locale: 'zh-CN',
     // A normal system-Chrome login encrypts cookies with the OS credential store

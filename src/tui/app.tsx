@@ -23,6 +23,7 @@ import {
 } from '../disclaimer/index.js';
 import { resolveRequirements } from '../requirements/resolve.js';
 import { auditOrder, listOrders, showOrder } from '../workflows/orders.js';
+import { listOrderActions } from '../workflows/order-actions.js';
 import { createQuote } from '../workflows/quote.js';
 import { listPlatformMessages } from '../workflows/messages.js';
 import { preparePayment } from '../workflows/payment.js';
@@ -55,7 +56,7 @@ function App(): React.JSX.Element {
   const [browserState, setBrowserState] = useState('检查中');
   const [authState, setAuthState] = useState('检查中');
   const [user, setUser] = useState<AuthenticatedUserSummary>();
-  const [agentMode, setCurrentAgentMode] = useState<AgentMode>('manual');
+  const [agentMode, setCurrentAgentMode] = useState<AgentMode>('hard');
   const [message, setMessage] = useState('输入 /help 查看命令');
   const [recentOrders, setRecentOrders] = useState<string[]>([]);
   const [notifications, setNotifications] = useState<TuiNotification[]>([]);
@@ -191,6 +192,10 @@ function App(): React.JSX.Element {
         setRecentOrders(orders.map((order) => `${order.id}  ${order.rawStatus}`));
         return setMessage(`读取到 ${orders.length} 条近期订单`);
       }
+      if (command === '/actions') {
+        if (!parts[0]) throw new Error('需要订单 ID');
+        return setMessage(JSON.stringify(await listOrderActions(parts[0], { headed: true }), null, 2));
+      }
       if (command === '/track') {
         if (!parts[0]) throw new Error('需要订单 ID');
         return setMessage(JSON.stringify(await showOrder(parts[0], { headed: true }), null, 2));
@@ -267,7 +272,7 @@ function App(): React.JSX.Element {
           <Text bold color={authState === '已登录测试站' ? 'green' : authState === '检查中' ? 'yellow' : 'red'}>
             登录：{authState}
           </Text>
-          <Text bold color={agentMode === 'manual' ? 'yellow' : 'magenta'}>
+          <Text bold color={agentMode === 'hard' ? 'yellow' : 'magenta'}>
             模式：{modeLabel(agentMode)} ({agentMode})
           </Text>
         </Box>
@@ -300,7 +305,7 @@ function App(): React.JSX.Element {
         />
       </Box>
       <Box>
-        <Text bold color={agentMode === 'manual' ? 'yellow' : 'magenta'}>▶▶ {agentMode}</Text>
+        <Text bold color={agentMode === 'hard' ? 'yellow' : 'magenta'}>▶▶ {agentMode}</Text>
         <Text color="gray"> · Shift+Tab 切换模式 · 输入 / 查看命令 · ↑/↓ 历史 · Ctrl+C 退出</Text>
       </Box>
     </Box>
@@ -425,7 +430,7 @@ export function FirstRunDisclaimer({ configFile, onDecision }: FirstRunDisclaime
 
   return <Box flexDirection="column" paddingX={2} paddingY={1}>
     <Box borderStyle="single" borderColor="red" flexDirection="column" paddingX={2} paddingY={1}>
-      <Text bold color="red">⚠ 警告：JLC CLI 为非官方工具</Text>
+      <Text bold color="red">⚠ 警告：JLC CLI 为第三方工具</Text>
       <Box marginTop={1}><Text>{DISCLAIMER_NOTICE.split('\n').slice(2).join('\n')}</Text></Box>
       <Box flexDirection="column" marginTop={1}>
         <Text bold={selected === 0} color={selected === 0 ? 'cyan' : undefined}>{selected === 0 ? '❯' : ' '} 1. 否，退出</Text>
@@ -439,7 +444,7 @@ export function FirstRunDisclaimer({ configFile, onDecision }: FirstRunDisclaime
 
 export async function runDisclaimerPrompt(configFile?: string): Promise<boolean> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    throw new JlcError('APPROVAL_REQUIRED', '首次使用必须在交互式终端阅读并确认非官方工具警告。');
+    throw new JlcError('APPROVAL_REQUIRED', '首次使用必须由用户在交互式终端阅读并确认第三方工具警告。');
   }
   let accepted = false;
   const instance = render(<FirstRunDisclaimer configFile={configFile} onDecision={(value) => { accepted = value; }} />);

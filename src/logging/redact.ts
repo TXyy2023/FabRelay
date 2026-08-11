@@ -11,7 +11,9 @@ export function redactSensitive(value: unknown): unknown {
   if (typeof value !== 'string') return value;
   return value
     .replace(/\b1\d{2}\d{4}\d{4}\b/g, '1**********')
-    .replace(/\b(?:Bearer\s+)?[A-Za-z0-9_-]{24,}\b/g, '<redacted-token>');
+    // Require at least one digit so kebab-case diagnostics such as
+    // 'order-api-unauthenticated' are not mistaken for bearer tokens.
+    .replace(/\b(?:Bearer\s+)?(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{24,}\b/g, '<redacted-token>');
 }
 
 export function redactOrderSummary(summary: Record<string, string>): Record<string, string> {

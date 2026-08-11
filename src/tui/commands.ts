@@ -10,6 +10,7 @@ export const TUI_COMMANDS: readonly TuiCommandDefinition[] = [
   { name: '/requirements', usage: '<files...>', description: '解析并合并 PCB 要求文件' },
   { name: '/quote', usage: '<gerber.zip> <requirements...>', description: '通过测试站页面获取实时 PCB 报价' },
   { name: '/orders', description: '读取测试站的近期订单' },
+  { name: '/actions', usage: '<order-id>', description: '列出订单可用的更多操作（18 项）' },
   { name: '/track', usage: '<order-id>', description: '查看订单、生产进度和物流状态' },
   { name: '/audit', usage: '<order-id>', description: '查看 PCB 文件审核结果' },
   { name: '/pay', usage: '<order-id>', description: '生成余额付款快照（不扣款）' },
@@ -17,7 +18,7 @@ export const TUI_COMMANDS: readonly TuiCommandDefinition[] = [
   { name: '/xiaozhi', usage: '<question>', description: '调用页面右下角嘉小智对话' },
   { name: '/browser', description: '检查 Chrome 与 Playwright 运行环境' },
   { name: '/auth', description: '登录测试站或检查当前会话' },
-  { name: '/mode', usage: '[manual|auto]', description: '查看或切换 Agent 工艺选择模式' },
+  { name: '/mode', usage: '[hard|simple]', description: '查看或切换 Agent 工艺选择模式' },
   { name: '/profile', description: '显示 jlc-cli 专用数据目录' },
   { name: '/help', description: '显示全部斜杠命令及用法' },
   { name: '/exit', description: '退出 jlc-cli' }

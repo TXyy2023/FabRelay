@@ -44,4 +44,11 @@ describe('TUI slash command palette', () => {
       '/audit', '/pay', '/messages', '/xiaozhi'
     ]));
   });
+
+  it('exposes the order action listing and hard/simple mode in the TUI', () => {
+    const names = TUI_COMMANDS.map((command) => command.name);
+    expect(names).toContain('/actions');
+    const mode = TUI_COMMANDS.find((command) => command.name === '/mode');
+    expect(mode?.usage).toBe('[hard|simple]');
+  });
 });

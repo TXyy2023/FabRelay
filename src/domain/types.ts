@@ -3,7 +3,15 @@ import { z } from 'zod';
 export const SCHEMA_VERSION = 1 as const;
 export const TEST_BASE_URL = 'https://test.jlc.com/' as const;
 
-export const AgentModeSchema = z.enum(['manual', 'auto']);
+export const LEGACY_MODE_ALIASES: Record<string, 'hard' | 'simple'> = {
+  manual: 'hard',
+  auto: 'simple'
+};
+
+export const AgentModeSchema = z.preprocess(
+  (value) => (typeof value === 'string' ? LEGACY_MODE_ALIASES[value] ?? value : value),
+  z.enum(['hard', 'simple'])
+);
 export type AgentMode = z.infer<typeof AgentModeSchema>;
 
 export const ModePreferenceValueSchema = z.union([z.string(), z.number(), z.boolean()]);
@@ -31,7 +39,7 @@ export const AgentModeContextSchema = z.object({
 export type AgentModeContext = z.infer<typeof AgentModeContextSchema>;
 
 export const DisclaimerAcceptanceSchema = z.object({
-  version: z.literal(1),
+  version: z.number().int().positive(),
   noticeSha256: z.string().length(64),
   acceptedAt: z.string()
 });
@@ -40,7 +48,7 @@ export type DisclaimerAcceptance = z.infer<typeof DisclaimerAcceptanceSchema>;
 export const DisclaimerStatusSchema = z.object({
   required: z.boolean(),
   accepted: z.boolean(),
-  version: z.literal(1),
+  version: z.number().int().positive(),
   noticeSha256: z.string().length(64),
   acceptedAt: z.string().optional()
 });
@@ -172,7 +180,7 @@ export const QuoteSnapshotSchema = z.object({
   gerberPath: z.string(),
   gerberSha256: z.string().length(64),
   parameterHash: z.string().length(64),
-  selectionMode: AgentModeSchema.default('manual'),
+  selectionMode: AgentModeSchema.default('hard'),
   requirementEvidence: z.array(RequirementEvidenceSchema).default([]),
   spec: PcbSpecSchema,
   localManifest: GerberManifestSchema,
@@ -244,6 +252,65 @@ export const OrderAuditSnapshotSchema = z.object({
   capturedAt: z.string()
 });
 export type OrderAuditSnapshot = z.infer<typeof OrderAuditSnapshotSchema>;
+
+export const OrderActionIdSchema = z.enum([
+  'reorder',
+  'print_contract',
+  'delivery_note',
+  'block_reorder',
+  'edit_memo',
+  'delete_order',
+  'follow',
+  'unfollow',
+  'change_shipping',
+  'download_qa_certificate',
+  'pause_production',
+  'share_to_yingchuang',
+  'reselect_template',
+  'modify_template',
+  'add_label',
+  'remove_label',
+  'urge_review',
+  'urge_shipment'
+]);
+export type OrderActionId = z.infer<typeof OrderActionIdSchema>;
+
+export const OrderActionTierSchema = z.enum(['read', 'reversible-write', 'dangerous-write']);
+export type OrderActionTier = z.infer<typeof OrderActionTierSchema>;
+
+export const OrderActionInfoSchema = z.object({
+  id: OrderActionIdSchema,
+  menuLabel: z.string(),
+  tier: OrderActionTierSchema,
+  available: z.boolean(),
+  reason: z.string().optional()
+});
+export type OrderActionInfo = z.infer<typeof OrderActionInfoSchema>;
+
+export const OrderActionsSnapshotSchema = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  orderId: z.string(),
+  rawStatus: z.string(),
+  actions: z.array(OrderActionInfoSchema),
+  capturedAt: z.string()
+});
+export type OrderActionsSnapshot = z.infer<typeof OrderActionsSnapshotSchema>;
+
+export const OrderActionResultStatusSchema = z.enum(['succeeded', 'failed', 'unknown']);
+export type OrderActionResultStatus = z.infer<typeof OrderActionResultStatusSchema>;
+
+export const OrderActionResultSchema = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  orderId: z.string(),
+  action: OrderActionIdSchema,
+  status: OrderActionResultStatusSchema,
+  detail: z.string().optional(),
+  dialogText: z.string().optional(),
+  artifactPaths: z.array(z.string()).default([]),
+  rawStatus: z.string().optional(),
+  capturedAt: z.string()
+});
+export type OrderActionResult = z.infer<typeof OrderActionResultSchema>;
 
 export const PaymentSnapshotSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION),

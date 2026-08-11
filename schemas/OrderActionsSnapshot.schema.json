@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "orderId": {
+      "type": "string"
+    },
+    "rawStatus": {
+      "type": "string"
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "reorder",
+              "print_contract",
+              "delivery_note",
+              "block_reorder",
+              "edit_memo",
+              "delete_order",
+              "follow",
+              "unfollow",
+              "change_shipping",
+              "download_qa_certificate",
+              "pause_production",
+              "share_to_yingchuang",
+              "reselect_template",
+              "modify_template",
+              "add_label",
+              "remove_label",
+              "urge_review",
+              "urge_shipment"
+            ]
+          },
+          "menuLabel": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "read",
+              "reversible-write",
+              "dangerous-write"
+            ]
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "menuLabel",
+          "tier",
+          "available"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "capturedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "orderId",
+    "rawStatus",
+    "actions",
+    "capturedAt"
+  ],
+  "additionalProperties": false
+}
