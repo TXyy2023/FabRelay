@@ -426,58 +426,87 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
   it("reuses an external browser without exporting storage or closing it", async () => {
     const dir = await directory();
     const externalDir = await directory();
-    const owner = await browserProvider.connect(
-      { engine: "chrome", executable: chrome },
-      dir,
-    );
-    const endpoint = owner.endpoint;
-    const target = owner.targetId;
-    await owner.page.route("**/*", (route) =>
-      route.fulfill({
-        contentType: "text/html",
-        body: '<!doctype html><link rel="icon" href="data:,"><h1>external session</h1>',
-      }),
-    );
-    await owner.page.goto("https://external-session.test");
-    await owner.page.evaluate(() => {
-      localStorage.setItem("external-login", "EXTERNAL_PRIVATE_LOCAL_VALUE");
-      document.cookie = "external-login=EXTERNAL_PRIVATE_COOKIE_VALUE; Path=/";
+    // This test needs a real origin for storage, not HTTPS interception.
+    const server = createServer((_request, response) => {
+      response.setHeader("Content-Type", "text/html; charset=utf-8");
+      response.end(
+        '<!doctype html><link rel="icon" href="data:,"><h1>external session</h1>',
+      );
     });
-    const originalPageCount = owner.page.context().pages().length;
-    await owner.disconnect();
-    const visitor = await browserProvider.connect(
-      { engine: "chrome", endpoint },
-      externalDir,
-      target,
+    await new Promise<void>((resolveListen) =>
+      server.listen(0, "127.0.0.1", resolveListen),
     );
-    await visitor.save();
-    expect(existsSync(join(externalDir, "browser-storage.json"))).toBe(false);
-    await visitor.disconnect();
-    const untargeted = await browserProvider.connect(
-      { engine: "chrome", endpoint },
-      externalDir,
-    );
-    expect(untargeted.page.context().pages()).toHaveLength(
-      originalPageCount + 1,
-    );
-    expect(untargeted.targetId).not.toBe(target);
-    await untargeted.disconnect();
-    expect(await stopOwnedBrowser(externalDir)).toBe(false);
-    const ownerAgain = await browserProvider.connect(
-      { engine: "chrome", executable: chrome },
-      dir,
-      target,
-    );
-    expect(ownerAgain.targetId).toBe(target);
-    expect(
-      await ownerAgain.page.evaluate(() =>
-        localStorage.getItem("external-login"),
-      ),
-    ).toBe("EXTERNAL_PRIVATE_LOCAL_VALUE");
-    expect(await ownerAgain.page.evaluate(() => document.cookie)).toContain(
-      "EXTERNAL_PRIVATE_COOKIE_VALUE",
-    );
-    await ownerAgain.disconnect();
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+    try {
+      const owner = await browserProvider.connect(
+        { engine: "chrome", executable: chrome },
+        dir,
+      );
+      const endpoint = owner.endpoint;
+      const target = owner.targetId;
+      await owner.page.goto(url);
+      expect(await owner.page.locator("h1").innerText()).toBe(
+        "external session",
+      );
+      await owner.page.evaluate(() => {
+        localStorage.setItem("external-login", "EXTERNAL_PRIVATE_LOCAL_VALUE");
+        document.cookie =
+          "external-login=EXTERNAL_PRIVATE_COOKIE_VALUE; Path=/";
+      });
+      const originalPageCount = owner.page.context().pages().length;
+      await owner.disconnect();
+      const visitor = await browserProvider.connect(
+        { engine: "chrome", endpoint },
+        externalDir,
+        target,
+      );
+      expect(visitor.targetId).toBe(target);
+      expect(visitor.page.url()).toBe(`${url}/`);
+      expect(
+        await visitor.page.evaluate(() =>
+          localStorage.getItem("external-login"),
+        ),
+      ).toBe("EXTERNAL_PRIVATE_LOCAL_VALUE");
+      await visitor.save();
+      expect(existsSync(join(externalDir, "browser-storage.json"))).toBe(false);
+      await visitor.disconnect();
+      const untargeted = await browserProvider.connect(
+        { engine: "chrome", endpoint },
+        externalDir,
+      );
+      expect(untargeted.page.context().pages()).toHaveLength(
+        originalPageCount + 1,
+      );
+      expect(untargeted.targetId).not.toBe(target);
+      await untargeted.disconnect();
+      expect(await stopOwnedBrowser(externalDir)).toBe(false);
+      const ownerAgain = await browserProvider.connect(
+        { engine: "chrome", executable: chrome },
+        dir,
+        target,
+      );
+      expect(ownerAgain.targetId).toBe(target);
+      expect(
+        await ownerAgain.page.evaluate(() =>
+          localStorage.getItem("external-login"),
+        ),
+      ).toBe("EXTERNAL_PRIVATE_LOCAL_VALUE");
+      expect(await ownerAgain.page.evaluate(() => document.cookie)).toContain(
+        "EXTERNAL_PRIVATE_COOKIE_VALUE",
+      );
+      await ownerAgain.disconnect();
+    } finally {
+      try {
+        await stopOwnedBrowser(dir);
+      } finally {
+        await new Promise<void>((resolveClose, rejectClose) => {
+          server.close((error) =>
+            error ? rejectClose(error) : resolveClose(),
+          );
+          server.closeAllConnections();
+        });
+      }
+    }
   }, 60_000);
 
   it("rejects website WebSockets and CSRF shutdown while native CDP remains usable", async () => {
