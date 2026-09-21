@@ -2066,18 +2066,23 @@ async function paymentResult(
       "核实页面账号与付款确认账号不同。",
       { orderId: id, paymentStatus: "unknown" },
     );
+  const orderPattern = new RegExp(
+    "订单(?:编号|号)\\s*[:：]?\\s*" + rx(id).source + "(?![A-Za-z0-9])",
+  );
+  const evidence: {
+    text: string;
+    amount: string | null;
+    source: "row" | "dialog";
+  }[] = [];
   if (
-    parsed?.paymentStatus === "paid" &&
+    row &&
+    parsed &&
     (!parsed.amount || Number(parsed.amount) === Number(expected.amount))
   )
-    return ok({
-      taskId: context.taskId,
-      orderId: id,
-      paymentStatus: "paid",
-      account: accountId,
+    evidence.push({
+      text: await row.innerText(),
       amount: parsed.amount,
-      method: null,
-      evidence: "指定订单行明确显示已支付；页面未展示支付方式时返回 null",
+      source: "row",
     });
   const dialogs = await page
     .locator(
@@ -2086,25 +2091,78 @@ async function paymentResult(
     .all();
   for (const dialog of dialogs) {
     const text = await dialog.innerText();
-    const amount = text.match(/[¥￥]\s*([\d.]+)/)?.[1];
-    if (amount && Number(amount) !== Number(expected.amount)) continue;
+    const amount = text.match(/[¥￥]\s*([\d.]+)/)?.[1] ?? null;
     if (
-      new RegExp("订单(?:编号|号)\\s*[:：]?\\s*" + id + "(?![A-Za-z0-9])").test(
-        text,
-      ) &&
-      /支付成功|付款成功/.test(text) &&
-      !/未支付|支付失败|待付款/.test(text)
+      !orderPattern.test(text) ||
+      (amount && Number(amount) !== Number(expected.amount))
     )
-      return ok({
+      continue;
+    const orderIds = [
+      ...text.matchAll(/订单(?:编号|号)\s*[:：]?\s*([A-Za-z]+\d+|\d{6,})\b/g),
+    ].map((match) => match[1]);
+    if (orderIds.some((orderId) => orderId !== id)) continue;
+    evidence.push({ text, amount, source: "dialog" });
+  }
+  // A full status line is evidence; prose such as “支付成功后开始审核” is not.
+  const paidStatus =
+    /^(?:(?:支付|付款)(?:状态|结果)\s*[:：]?\s*)?(?:支付成功|付款成功|已支付|已付款)\s*[。！!]?$/;
+  const paid = evidence.filter((item) =>
+    item.text
+      .split(/[\r\n]+/)
+      .some(
+        (line, index, lines) =>
+          paidStatus.test(line.trim()) &&
+          !/^(?:后|以后|之后|时|才可|才能|才会|方可|即可)/.test(
+            lines[index + 1]?.trim() ?? "",
+          ) &&
+          !/(?:如果|若|一旦|当)\s*$/.test(lines[index - 1] ?? ""),
+      ),
+  );
+  const negative = evidence.some((item) =>
+    /未支付|未付款|待支付|待付款|支付失败|付款失败|扣款失败|支付未成功|付款未成功/.test(
+      item.text,
+    ),
+  );
+  const failed = evidence.some((item) =>
+    /支付失败|付款失败|扣款失败|支付未成功|付款未成功/.test(item.text),
+  );
+  const successMention = evidence.some((item) =>
+    /支付成功|付款成功|已支付|已付款/.test(item.text),
+  );
+  if (
+    (paid.length > 0 && negative) ||
+    failed ||
+    (successMention && !paid.length)
+  )
+    return problem(
+      "unknown",
+      "PAYMENT_STATE_UNVERIFIED",
+      "当前订单没有独立、无冲突的付款成功状态；说明文字不作为付款证据。",
+      {
         taskId: context.taskId,
         orderId: id,
-        paymentStatus: "paid",
-        account: accountId,
-        amount: text.match(/[¥￥]\s*([\d.]+)/)?.[1] ?? null,
-        method: /余额/.test(text) ? "balance" : null,
-        evidence: norm(text),
-      });
-  }
+        paymentStatus: "unknown",
+        binding: expected,
+        verificationRequired: true,
+      },
+    );
+  const confirmed = paid[0];
+  if (confirmed)
+    return ok({
+      taskId: context.taskId,
+      orderId: id,
+      paymentStatus: "paid",
+      account: accountId,
+      amount: confirmed.amount,
+      method:
+        confirmed.source === "dialog" && /余额/.test(confirmed.text)
+          ? "balance"
+          : null,
+      evidence:
+        confirmed.source === "row"
+          ? "指定订单行显示独立已付款状态，当前同单页面没有矛盾状态"
+          : norm(confirmed.text),
+    });
   return problem(
     "unknown",
     "PAYMENT_RESULT_UNKNOWN",
@@ -2411,7 +2469,11 @@ async function reconcilePayment(
   context: AdapterContext,
 ): Promise<BusinessResult> {
   const result = await paymentResult(page, context);
-  if (result.status === "succeeded" || context.effectStarted !== false)
+  if (
+    result.status === "succeeded" ||
+    context.effectStarted !== false ||
+    result.error?.code === "PAYMENT_STATE_UNVERIFIED"
+  )
     return result;
   const prepared = await readPayment(page, context);
   if (prepared.status !== "succeeded") return prepared;

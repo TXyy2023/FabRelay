@@ -185,7 +185,7 @@ describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
   });
   it("records payment intent before clicking and verifies exact order success", async () => {
     await fixture(
-      `${account}<div role="dialog">订单编号：Y1234 <p>应付金额：￥12.30</p><label><input type="radio" checked>余额支付</label><button onclick="this.parentElement.innerHTML='订单编号：Y1234 支付成功 余额支付 ￥12.30'">确认支付</button></div>`,
+      `${account}<div role="dialog">订单编号：Y1234 <p>应付金额：￥12.30</p><label><input type="radio" checked>余额支付</label><button onclick="this.parentElement.innerHTML='订单编号：Y1234 <p role=status>支付成功</p> 余额支付 ￥12.30'">确认支付</button></div>`,
     );
     const ctx = context({ orderId: "Y1234" }, { binding });
     ctx.beforeEffect = async (kind, b) => {
@@ -227,6 +227,75 @@ describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
     expect(result.status).toBe("unknown");
     expect(effects).toHaveLength(1);
   });
+  it.each([
+    "支付成功后开始审核",
+    "付款成功后开始审核",
+    "支付成功<br>后开始审核",
+    "未付款 应付金额：￥12.30 余额支付 支付成功后开始审核",
+  ])(
+    "does not treat future payment instructions as a paid result before any effect: %s",
+    async (description) => {
+      await fixture(
+        `${account}<div role="dialog">订单编号：Y1234 <p>${description}</p></div><button onclick="window.paid=true">确认支付</button>`,
+      );
+      const result = await siteAdapter.reconcile("payment.execute", page, {
+        ...context({ orderId: "Y1234" }, { binding }),
+        effectStarted: false,
+      });
+      expect(result.status).toBe("unknown");
+      expect(result.data.paymentStatus).toBe("unknown");
+      expect(result.resume).toBeUndefined();
+      expect(await page.evaluate(() => Boolean((window as any).paid))).toBe(
+        false,
+      );
+      expect(effects).toEqual([]);
+    },
+  );
+  it.each(["未付款", "支付失败", "付款失败"])(
+    "rejects a same-order success state contradicted by %s",
+    async (negative) => {
+      await fixture(
+        `${account}<div role="dialog">订单编号：Y1234 <p role="status">支付成功</p><p>${negative}</p><p>余额支付 ￥12.30</p></div>`,
+      );
+      const result = await siteAdapter.reconcile("payment.execute", page, {
+        ...context({ orderId: "Y1234" }, { binding }),
+        effectStarted: false,
+      });
+      expect(result.status).toBe("unknown");
+      expect(result.resume).toBeUndefined();
+      expect(effects).toEqual([]);
+    },
+  );
+  it("rejects a paid row when the current same-order dialog still says unpaid", async () => {
+    await fixture(
+      `${account}<div class="tableListBox">订单编号：Y1234<p>已支付</p><p>￥12.30</p></div><div role="dialog">订单编号：Y1234<p>未付款</p><p>应付金额：￥12.30</p></div>`,
+    );
+    const result = await siteAdapter.reconcile("payment.execute", page, {
+      ...context({ orderId: "Y1234" }, { binding }),
+      effectStarted: false,
+    });
+    expect(result.status).toBe("unknown");
+    expect(result.resume).toBeUndefined();
+    expect(effects).toEqual([]);
+  });
+  it.each(["支付成功", "付款状态：已付款"])(
+    "accepts an independent bound payment status without replaying: %s",
+    async (status) => {
+      await fixture(
+        `${account}<div role="dialog">订单编号：Y1234 <p role="status">${status}</p><p>余额支付 ￥12.30</p></div>`,
+      );
+      const result = await siteAdapter.reconcile("payment.execute", page, {
+        ...context({ orderId: "Y1234" }, { binding }),
+        effectStarted: false,
+      });
+      expect(result.status).toBe("succeeded");
+      expect(result.data.paymentStatus).toBe("paid");
+      expect(result.data.orderId).toBe(binding.orderId);
+      expect(result.data.amount).toBe(binding.amount);
+      expect(result.resume).toBeUndefined();
+      expect(effects).toEqual([]);
+    },
+  );
   it("reads passport iframe methods and does not mislabel missing QR as a QR artifact", async () => {
     await page.route("https://member.jlc.com/**", (r) =>
       r.fulfill({

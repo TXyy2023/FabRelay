@@ -413,7 +413,7 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
     ).rejects.toMatchObject({ code: "BROWSER_TARGET_GONE" });
   }, 20_000);
 
-  it("disconnects from an explicit external endpoint without closing its browser", async () => {
+  it("reuses an external browser without exporting storage or closing it", async () => {
     const dir = await directory();
     const externalDir = await directory();
     const owner = await browserProvider.connect(
@@ -422,12 +422,25 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
     );
     const endpoint = owner.endpoint;
     const target = owner.targetId;
+    await owner.page.route("**/*", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: '<!doctype html><link rel="icon" href="data:,"><h1>external session</h1>',
+      }),
+    );
+    await owner.page.goto("https://external-session.test");
+    await owner.page.evaluate(() => {
+      localStorage.setItem("external-login", "EXTERNAL_PRIVATE_LOCAL_VALUE");
+      document.cookie = "external-login=EXTERNAL_PRIVATE_COOKIE_VALUE; Path=/";
+    });
     await owner.disconnect();
     const visitor = await browserProvider.connect(
       { engine: "chrome", endpoint },
       externalDir,
       target,
     );
+    await visitor.save();
+    expect(existsSync(join(externalDir, "browser-storage.json"))).toBe(false);
     await visitor.disconnect();
     expect(await stopOwnedBrowser(externalDir)).toBe(false);
     const ownerAgain = await browserProvider.connect(
@@ -436,6 +449,14 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
       target,
     );
     expect(ownerAgain.targetId).toBe(target);
+    expect(
+      await ownerAgain.page.evaluate(() =>
+        localStorage.getItem("external-login"),
+      ),
+    ).toBe("EXTERNAL_PRIVATE_LOCAL_VALUE");
+    expect(await ownerAgain.page.evaluate(() => document.cookie)).toContain(
+      "EXTERNAL_PRIVATE_COOKIE_VALUE",
+    );
     await ownerAgain.disconnect();
   }, 20_000);
 

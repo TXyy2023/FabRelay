@@ -682,6 +682,9 @@ async function connect(
             "BROWSER_DISCONNECTED",
             "The CDP client is disconnected.",
           );
+        // An attached browser may hold unrelated accounts. Reuse its live
+        // state without exporting its context into this CLI profile.
+        if (!owned) return;
         const state = await bounded(
           collectState(context),
           timeout,
