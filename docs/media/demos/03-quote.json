@@ -1,0 +1,15 @@
+{
+  "title": "03 / 工艺回读与真实报价",
+  "model": "gpt-5.6-luna",
+  "cliVersion": "1.0.0-dev.1",
+  "executionSeconds": 209.287,
+  "sessions": 1,
+  "playbackSpeed": 4,
+  "recordedAt": "2026-09-21T14:59:34.573Z",
+  "subtitle": "CH340N · 5 片 · 1.6 mm · 绿油白字 · ¥30.00 · 顺丰包邮",
+  "provenance": "Live local browser recording of actual Codex CLI events, followed by a redacted CDP screenshot.",
+  "limitations": [
+    "报价前曾由录制者通过有租约的 CDP 接管确认免费客编位置弹窗；本视频从接管完成后开始。",
+    "价格与交期为2026-09-21本次网站返回；生产交期以实际审核与生产为准。"
+  ]
+}

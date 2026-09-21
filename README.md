@@ -1,10 +1,43 @@
-# jlc-cli
+<p align="center">
+  <img src="docs/media/branding/jlc-cli-banner.png" alt="jlc-cli：终端提示符与 PCB 走线组成的社区项目 Logo" width="960">
+</p>
+
+<h1 align="center">jlc-cli</h1>
+
+<p align="center">
+  <a href="https://github.com/TXyy2023/jlc-cli/actions/workflows/ci.yml"><img src="https://github.com/TXyy2023/jlc-cli/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/version-1.0.0--dev.1-64748b" alt="开发版本 1.0.0-dev.1"></a>
+  <a href="package-lock.json"><img src="https://img.shields.io/badge/TypeScript-5.9.3-3178c6?logo=typescript&amp;logoColor=white" alt="TypeScript 5.9.3"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/Node.js-%3E%3D22.12-5fa04e?logo=nodedotjs&amp;logoColor=white" alt="Node.js 22.12 或更高版本"></a>
+  <a href="package-lock.json"><img src="https://img.shields.io/badge/Playwright-1.62.1-2e7d32" alt="Playwright 1.62.1"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0f766e" alt="MIT License"></a>
+</p>
+
+<p align="center">
+  <strong>让终端与 AI Agent 操作真实的 PCB 业务流程。</strong><br>
+  <a href="#视频演示">视频演示</a> · <a href="#快速开始">快速开始</a> · <a href="skills/jlc-cli/SKILL.md">Agent Skill</a> · <a href="docs/acceptance.md">验收范围</a> · <a href="docs/design.md">设计说明</a>
+</p>
 
 把嘉立创中国站的常用业务流程接入终端与 AI Agent：登录、上传 PCB 文件、读取和设置工艺参数、预览、报价，以及查询已有订单。
 
 **这是一个非官方、社区维护的开源参考项目，不是嘉立创官方插件，也没有嘉立创官方背书。** 项目面向 [嘉立创中国站 jlc.com](https://www.jlc.com/)，通过浏览器操作网站，不代表官方开放 API；海外 JLCPCB 的账号、接口和业务规则不属于本项目范围。
 
 当前版本为 **`1.0.0-dev.1`**，尚未发布到 npm，请从源码构建。建议先阅读下面的能力范围，再用自己的测试文件完成一次“上传 → 参数 → 报价”，熟悉结果后接入日常工作流。
+
+## 视频演示
+
+使用 Codex 的 **`gpt-5.6-luna`**，搭配本项目 CLI 与 Skill，演示“自然语言指令 → AI 实际执行（等待片段 4× 加速）→ 通过 CDP 连接对应网页截图”。点击封面打开视频；也可下载仓库后打开 [四格播放器](docs/media/demos/index.html)。画面录制自实时显示的 Codex CLI 事件流，素材来源与验证边界见 [录制说明](docs/media/demos/SOURCE.md)，进度见 [制作清单](docs/demo-videos.md)。
+
+<table>
+  <tr>
+    <td width="50%"><strong>① 登录与会话核实</strong><br><a href="docs/media/demos/01-login.mp4"><img src="docs/media/demos/01-login.png" alt="播放登录与会话核实视频" width="100%"></a><br>复用已登录会话并核实账号；本次没有重新扫码。</td>
+    <td width="50%"><strong>② Gerber 解析与预览</strong><br><a href="docs/media/demos/02-preview.mp4"><img src="docs/media/demos/02-preview.png" alt="播放 Gerber 解析与预览视频" width="100%"></a><br>开源 CH340N 双层板；包含遇到加载问题、修复 CLI 后继续同一任务成功预览的过程。</td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>③ 报价</strong><br><a href="docs/media/demos/03-quote.mp4"><img src="docs/media/demos/03-quote.png" alt="播放真实报价视频" width="100%"></a><br>5 片实际报价 30.00 元、顺丰包邮；本段从客编弹窗接管完成后开始。</td>
+    <td width="50%"><strong>④ 下单与 PCB 生产进度</strong><br><a href="docs/media/demos/04-orders.mp4"><img src="docs/media/demos/04-orders.png" alt="播放下单与生产进度视频" width="100%"></a><br>新订单 Y42 已核实，30 元待付款、未投产；另附明确标注的历史订单 Y40 工序查询。</td>
+  </tr>
+</table>
 
 ## 可以用它做什么
 
@@ -17,7 +50,8 @@
 | 登录与账号 | Chrome 已验证微信快捷登录、身份核实、真实二维码素材交付、签名登录回调及会话恢复；不代表所有登录方式均已验证 |
 | PCB 文件到报价 | Chrome 已验证合成 Gerber 测试板的上传解析、参数设置与回读、网站实际预览和报价；其他工艺组合仍需补充验证 |
 | 已有订单查询 | 已验证现有 PCB 订单的列表、详情和进度；官网 PCB/FPC 共用列表中的 FPC 字段差异尚未验收 |
-| 建单、余额付款、嘉小智文本对话 | 已有命令与对应流程，但尚未完成真实业务的完整验收 |
+| 建单 | 已实际建立 CH340N 订单并按唯一文件名查询核实；提交任务仍返回 unknown，当前需独立只读核验，见演示说明 |
+| 余额付款、嘉小智文本对话 | 尚未完成真实业务的完整验收；本次付款准备停在订单绑定检查，未扣款 |
 | Agent 集成与异常恢复 | 提供 JSON/事件输出、任务观察、保留页面和 CDP 接管；真实业务接管闭环仍需继续验证 |
 
 **当前实站使用请显式选择 Chrome。** 默认引擎仍为 [Obscura](https://github.com/h4ckf0r0day/obscura)，其运行时与公开页面访问已验证，但客户中心及登录页面的兼容问题尚未解决。CLI 不会自动切换引擎。macOS、Windows、Linux 已有自动化检查基线，具体浏览器与业务验证范围见 [验收记录](docs/acceptance.md)。

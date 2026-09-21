@@ -1031,6 +1031,20 @@ async function openUploadedForm(
         "当前参数页与本次文件打开时的页面标识不同；报价和确认已失效。",
         { upload, quote: null },
       );
+    // A transfer can finish rendering after an earlier command timed out.
+    // Rebind only when this exact, uniquely named upload is visible in the
+    // official preview region; never accept an unrelated currently open form.
+    const filename = upload.uploadName.replace(/\.(zip|rar)$/i, "");
+    const shownFile = await page
+      .locator("#rightcontent")
+      .innerText()
+      .catch(() => "");
+    if (shownFile.includes(filename)) {
+      await waitForForm(page, context.timeoutMs, true);
+      upload.formPageIdentity = formIdentity(page.url());
+      upload.formParametersHash = paramsHash(await discoverParameters(page));
+      return null;
+    }
   }
   if (!upload)
     return problem(
@@ -1060,15 +1074,17 @@ async function openUploadedForm(
     if (!trusted(popup.url()))
       return handoff("UNEXPECTED_ORIGIN", "文件参数页面进入了未识别的站点。");
     await waitForForm(popup, context.timeoutMs, true);
-    const expected = await discoverParameters(popup);
     await page.goto(popup.url(), { waitUntil: "domcontentloaded" });
     await waitForForm(page, context.timeoutMs, true);
-    const observed = await waitUntil(
-      () => discoverParameters(page),
-      (p) => paramsHash(p) === paramsHash(expected),
+    const transfer = await waitUntil(
+      async () => ({
+        expected: await discoverParameters(popup),
+        observed: await discoverParameters(page),
+      }),
+      ({ expected, observed }) => paramsHash(observed) === paramsHash(expected),
       Math.min(context.timeoutMs, 5000),
     );
-    if (paramsHash(observed) !== paramsHash(expected))
+    if (paramsHash(transfer.observed) !== paramsHash(transfer.expected))
       return handoff(
         "FORM_SESSION_TRANSFER_FAILED",
         "文件参数页面在复用会话时状态不一致；新窗口保留供接管。",
@@ -1481,44 +1497,57 @@ async function preview(
       { upload },
     );
   const rendered = await waitUntil(
-    () =>
-      canvas
-        .evaluate((element) => {
-          const source = element as HTMLCanvasElement;
-          if (source.width < 100 || source.height < 100) return null;
-          const probe = document.createElement("canvas");
-          probe.width = source.width;
-          probe.height = source.height;
-          const context = probe.getContext("2d")!;
-          context.drawImage(source, 0, 0);
-          const pixels = context.getImageData(
-            0,
-            0,
-            probe.width,
-            probe.height,
-          ).data;
-          const colors = new Set<string>();
-          let colored = 0;
-          for (let i = 0; i < pixels.length; i += 4) {
-            if (pixels[i + 3] === 0) continue;
-            colors.add(pixels[i] + "," + pixels[i + 1] + "," + pixels[i + 2]);
-            if (
-              Math.max(pixels[i], pixels[i + 1], pixels[i + 2]) -
-                Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) >
-              30
-            )
-              colored++;
-          }
-          return colors.size > 8 && colored > 100
-            ? {
-                data: source.toDataURL("image/png"),
-                width: source.width,
-                height: source.height,
-                coloredPixels: colored,
-              }
-            : null;
-        })
-        .catch(() => null),
+    async () => {
+      // A WebGL renderer may clear its drawing buffer after compositing.
+      // Capture the visible canvas, then validate that bitmap, rather than
+      // reading the cleared WebGL buffer through drawImage/toDataURL.
+      const bitmap = await canvas
+        .screenshot({ type: "png", scale: "css", timeout: context.timeoutMs })
+        .catch(() => null);
+      if (!bitmap) return null;
+      return page
+        .evaluate(
+          async (data) => {
+            const source = new Image();
+            source.src = data;
+            await source.decode();
+            if (source.width < 100 || source.height < 100) return null;
+            const probe = document.createElement("canvas");
+            probe.width = source.width;
+            probe.height = source.height;
+            const context = probe.getContext("2d")!;
+            context.drawImage(source, 0, 0);
+            const pixels = context.getImageData(
+              0,
+              0,
+              probe.width,
+              probe.height,
+            ).data;
+            const colors = new Set<string>();
+            let colored = 0;
+            for (let i = 0; i < pixels.length; i += 4) {
+              if (pixels[i + 3] === 0) continue;
+              colors.add(pixels[i] + "," + pixels[i + 1] + "," + pixels[i + 2]);
+              if (
+                Math.max(pixels[i], pixels[i + 1], pixels[i + 2]) -
+                  Math.min(pixels[i], pixels[i + 1], pixels[i + 2]) >
+                30
+              )
+                colored++;
+            }
+            return colors.size > 8 && colored > 100
+              ? {
+                  data,
+                  width: source.width,
+                  height: source.height,
+                  coloredPixels: colored,
+                }
+              : null;
+          },
+          `data:image/png;base64,${bitmap.toString("base64")}`,
+        )
+        .catch(() => null);
+    },
     (value) => !!value,
     Math.min(context.timeoutMs, 10000),
   );
@@ -1544,6 +1573,17 @@ async function preview(
     },
     parseStatus: "parsed",
   });
+}
+async function orderCheckDrawer(page: Page): Promise<Locator | null> {
+  return visible(
+    page.locator(".el-drawer:visible").filter({ hasText: "订单检查" }),
+  );
+}
+async function orderSubmitButton(page: Page): Promise<Locator | null> {
+  const drawer = await orderCheckDrawer(page);
+  return drawer
+    ? visible(drawer.getByRole("button", { name: "确认并提交", exact: true }))
+    : visible(page.locator("#submitBtn"));
 }
 async function check(
   page: Page,
@@ -1573,7 +1613,7 @@ async function check(
       "请明确填写收货地址、联系人或开票资料。",
       result.data,
     );
-  if (click) {
+  if (click && !(await orderCheckDrawer(page))) {
     const button = await visible(
       page.getByRole("button", { name: "检查订单", exact: true }),
     );
@@ -1862,7 +1902,7 @@ async function submit(
       "提交内容与之前报价不同，请先重新报价并检查。",
       checked.data,
     );
-  const button = await visible(page.locator("#submitBtn"));
+  const button = await orderSubmitButton(page);
   if (!button)
     return handoff(
       "SUBMIT_UNAVAILABLE",
@@ -2455,7 +2495,7 @@ async function reconcileSubmit(
       "恢复后的文件、参数或报价与原任务不一致，需要重新报价。",
       { ...checked.data, quote: null, previousQuote: oldQuote },
     );
-  const submitButton = await visible(page.locator("#submitBtn"));
+  const submitButton = await orderSubmitButton(page);
   if (!submitButton || !(await submitButton.isEnabled()))
     return handoff("SUBMIT_UNAVAILABLE", "提交按钮仍未可用。", checked.data);
   return resumeReady({

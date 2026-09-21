@@ -1,0 +1,32 @@
+{
+  "title": "04 / 下单与 PCB 生产进度",
+  "model": "gpt-5.6-luna",
+  "cliVersion": "1.0.0-dev.1",
+  "executionSeconds": 325.326,
+  "sessions": 3,
+  "playbackSpeed": 4,
+  "recordedAt": "2026-09-21T15:17:39.115Z",
+  "subtitle": "CH340N 新订单 Y42 · ¥30.00 · 待付款 / 未投产 · 后附独立历史工序查询",
+  "provenance": "Live local browser recording of actual Codex CLI events, followed by a redacted CDP screenshot.",
+  "limitations": [
+    "修复订单检查侧栏入口后恢复原提交任务；提交后CLI超时unknown，独立只读列表按唯一文件名核实为Y42，未重复提交。",
+    "新订单Y42为30元待付款，未投产。payment prepare因PAYMENT_ORDER_NOT_BOUND未生成摘要，没有确认或执行付款。",
+    "附录为独立历史订单Y40，不代表Y42完成生产。"
+  ],
+  "cdpScreenshots": [
+    "04-orders.png",
+    "04-history.png"
+  ],
+  "chapters": [
+    {
+      "title": "新订单创建与独立核实",
+      "order": "Y42",
+      "state": "待付款，未投产"
+    },
+    {
+      "title": "独立历史工序查询",
+      "order": "Y40",
+      "state": "已发货，非新订单生产结果"
+    }
+  ]
+}

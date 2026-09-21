@@ -1,0 +1,15 @@
+{
+  "title": "02 / Gerber 解析与真实预览",
+  "model": "gpt-5.6-luna",
+  "cliVersion": "1.0.0-dev.1",
+  "executionSeconds": 283.659,
+  "sessions": 2,
+  "playbackSpeed": 4,
+  "recordedAt": "2026-09-21T14:51:26.865Z",
+  "subtitle": "CH340N · 20 × 48.5 mm · FR-4 双层板 · 含 CLI 修复后的任务恢复",
+  "provenance": "Live local browser recording of actual Codex CLI events, followed by a redacted CDP screenshot.",
+  "limitations": [
+    "视频包含两次实际 Codex 执行：上传后遇到加载状态不一致；录制者修复 CLI 后，由 Luna 继续同一任务完成预览。没有将其表述为一次无干预成功。",
+    "视频结尾展示预览，尚未决定数量与全部工艺；页面0元不是报价。"
+  ]
+}

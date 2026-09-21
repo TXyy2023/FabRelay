@@ -498,6 +498,49 @@ describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
     expect(started.resume).toBeUndefined();
   });
 
+  it("reuses the order-check drawer and commits only through its enabled confirmation button", async () => {
+    await fixture(
+      `${account}<div id="leftcontent"><label>确认订单方式<button name="确认订单方式" class="checked">手动确认订单</button></label></div><aside id="rightcontent">总价 ￥12.30</aside><button onclick="window.checkClicks=(window.checkClicks||0)+1;document.querySelector('#review').hidden=false">检查订单</button><button id="submitBtn" onclick="window.wrongButton=true">提交订单</button><div id="review" class="el-drawer" hidden style="position:fixed;inset:0;background:white;z-index:100"><h2>订单检查</h2><button id="confirm" onclick="window.confirmed=(window.confirmed||0)+1">确认并提交</button></div>`,
+    );
+    const checked = await siteAdapter.run(
+      "pcb.check",
+      page,
+      context(
+        {},
+        { upload, decisions: { 确认订单方式: { value: "手动确认订单" } } },
+      ),
+    );
+    expect(checked.status).toBe("succeeded");
+    await page
+      .locator("#confirm")
+      .evaluate((button) => ((button as HTMLButtonElement).disabled = true));
+    const paused = await siteAdapter.reconcile("pcb.submit", page, {
+      ...context({}, checked.data),
+      effectStarted: false,
+    });
+    expect(paused.error?.code).toBe("SUBMIT_UNAVAILABLE");
+    expect(effects).toEqual([]);
+    await page
+      .locator("#confirm")
+      .evaluate((button) => ((button as HTMLButtonElement).disabled = false));
+    const submitted = await siteAdapter.run(
+      "pcb.submit",
+      page,
+      context({}, checked.data),
+    );
+    // The fixture intentionally supplies no backend order receipt.
+    expect(submitted.status).toBe("unknown");
+    expect(effects).toHaveLength(1);
+    expect(effects[0].kind).toBe("submit");
+    expect(
+      await page.evaluate(() => ({
+        checked: (window as any).checkClicks,
+        confirmed: (window as any).confirmed,
+        wrong: !!(window as any).wrongButton,
+      })),
+    ).toEqual({ checked: 1, confirmed: 1, wrong: false });
+  }, 15000);
+
   it("does not resume submit from an identical-looking form with a different file identity", async () => {
     await fixture(
       `${account}<div id="leftcontent">参数页面</div><button id="submitBtn">提交订单</button>`,
@@ -707,9 +750,39 @@ describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
     expect(result.data.preview).toBeUndefined();
   });
 
+  it("recovers a rendered form only when its unique upload filename matches", async () => {
+    const unbound = { ...upload, formPageIdentity: undefined };
+    await fixture(
+      `<div id="leftcontent"><label>数量<input name="数量" value="5"></label></div><aside id="rightcontent">${upload.uploadName.replace(".zip", "")}</aside>`,
+    );
+    const result = await siteAdapter.run(
+      "pcb.options",
+      page,
+      context({}, { upload: unbound }),
+    );
+    expect(result.status).toBe("succeeded");
+    expect(result.data.upload).toMatchObject({
+      formPageIdentity: upload.formPageIdentity,
+    });
+    expect(effects).toEqual([]);
+  });
+
+  it("does not bind an unrelated open form to an upload without a form identity", async () => {
+    await fixture(
+      `<div id="leftcontent"><label>数量<input name="数量" value="5"></label></div><aside id="rightcontent">jlc-cli-other-board</aside>`,
+    );
+    const result = await siteAdapter.run(
+      "pcb.options",
+      page,
+      context({}, { upload: { ...upload, formPageIdentity: undefined } }),
+    );
+    expect(result.status).toBe("handoff");
+    expect(result.error?.code).toBe("UPLOAD_NOT_FOUND");
+  });
+
   it("exports only the bound official renderer canvas when actual colored pixels exist", async () => {
     await fixture(
-      `<div id="leftcontent">文件参数</div><aside id="rightcontent">${upload.uploadName.replace(".zip", "")}<canvas id="smt-engine-canvas" width="150" height="150"></canvas></aside><script>const ctx=document.querySelector('canvas').getContext('2d');const g=ctx.createLinearGradient(0,0,150,0);g.addColorStop(0,'green');g.addColorStop(1,'gold');ctx.fillStyle=g;ctx.fillRect(10,10,120,120);</script>`,
+      `<div id="leftcontent">文件参数</div><aside id="rightcontent">${upload.uploadName.replace(".zip", "")}<canvas id="smt-engine-canvas" style="display:block" width="150" height="150"></canvas></aside><script>const ctx=document.querySelector('canvas').getContext('2d');const g=ctx.createLinearGradient(0,0,150,0);g.addColorStop(0,'green');g.addColorStop(1,'gold');ctx.fillStyle=g;ctx.fillRect(10,10,120,120);</script>`,
     );
     const result = await siteAdapter.run(
       "pcb.preview",
@@ -724,6 +797,57 @@ describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
       height: 150,
     });
     expect(effects).toEqual([]);
+  });
+
+  it("captures a composited WebGL preview with a non-preserved drawing buffer", async () => {
+    await fixture(
+      `<div id="leftcontent">文件参数</div><aside id="rightcontent">${upload.uploadName.replace(".zip", "")}<canvas id="smt-engine-canvas" style="display:block" width="150" height="150"></canvas></aside><script>
+      const gl=document.querySelector('canvas').getContext('webgl',{preserveDrawingBuffer:false});
+      const shader=(type,source)=>{const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);return s};
+      const program=gl.createProgram();
+      gl.attachShader(program,shader(gl.VERTEX_SHADER,'attribute vec2 p; varying vec2 uv; void main(){uv=p;gl_Position=vec4(p,0.,1.);}'));
+      gl.attachShader(program,shader(gl.FRAGMENT_SHADER,'precision mediump float; varying vec2 uv; void main(){gl_FragColor=vec4((uv.x+1.)*.35,.65,(uv.y+1.)*.15,1.);}'));
+      gl.linkProgram(program);gl.useProgram(program);
+      gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,0,1]),gl.STATIC_DRAW);
+      const p=gl.getAttribLocation(program,'p');gl.enableVertexAttribArray(p);gl.vertexAttribPointer(p,2,gl.FLOAT,false,0,0);
+      function draw(){gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3);requestAnimationFrame(draw)}draw();
+      </script>`,
+    );
+    expect(
+      await page
+        .locator("canvas")
+        .evaluate(
+          (canvas) =>
+            (canvas as HTMLCanvasElement)
+              .getContext("webgl")
+              ?.getContextAttributes()?.preserveDrawingBuffer,
+        ),
+    ).toBe(false);
+    const result = await siteAdapter.run(
+      "pcb.preview",
+      page,
+      context({}, { upload }),
+    );
+    expect(result.status).toBe("succeeded");
+    expect(result.data.preview).toMatchObject({
+      width: 150,
+      height: 150,
+      fileSha256: upload.sha256,
+    });
+    expect(effects).toEqual([]);
+  });
+
+  it("rejects a blank official canvas even when it is screenshot-able", async () => {
+    await fixture(
+      `<div id="leftcontent">文件参数</div><aside id="rightcontent">${upload.uploadName.replace(".zip", "")}<canvas id="smt-engine-canvas" style="display:block" width="150" height="150"></canvas></aside>`,
+    );
+    const result = await siteAdapter.run(
+      "pcb.preview",
+      page,
+      context({}, { upload }),
+    );
+    expect(result.error?.code).toBe("PREVIEW_NOT_READY");
+    expect(result.data.preview).toBeUndefined();
   });
 
   it("does not reopen a file or click upload rows while reconciling a missing preview", async () => {
