@@ -13,6 +13,7 @@ jobs:
   validate:
     name: ${{ matrix.os }} / Node ${{ matrix.node }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -30,7 +31,13 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - if: runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium
+        timeout-minutes: 5
+      - if: runner.os != 'Linux'
+        run: npx playwright install chromium
+        timeout-minutes: 5
+      - run: node -e "console.log(JSON.stringify({platform:process.platform,arch:process.arch,node:process.version}))"
       - run: npm run typecheck
       - run: npm run format:check
       - run: npm test

@@ -310,10 +310,12 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
 
   it("keeps cookies and localStorage private and restores them after owned browser restart", async () => {
     const dir = await directory();
-    let requests = 0;
-    const server = createServer((_request, response) => {
-      requests++;
-      response.end("<!doctype html><h1>storage fixture</h1>");
+    const requests: string[] = [];
+    const server = createServer((request, response) => {
+      requests.push(request.url ?? "");
+      response.end(
+        '<!doctype html><link rel="icon" href="data:,"><h1>storage fixture</h1>',
+      );
     });
     await new Promise<void>((resolveListen) =>
       server.listen(0, "127.0.0.1", resolveListen),
@@ -351,13 +353,15 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
         ).toBe(0o600);
         expect((await stat(dir)).mode & 0o777).toBe(0o700);
       }
-      const requestsBeforeRestore = requests;
+      const requestsBeforeRestore = [...requests];
       const second = await browserProvider.connect(
         { engine: "chrome", executable: chrome },
         dir,
       );
       try {
-        expect(requests).toBe(requestsBeforeRestore);
+        // Include asynchronous browser UI requests in the network assertion.
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
+        expect(requests).toEqual(requestsBeforeRestore);
         await second.page.goto(url);
         expect(
           await second.page.evaluate(() =>

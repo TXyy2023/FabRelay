@@ -458,7 +458,9 @@ async function restoreState(
       route.fulfill({
         status: 200,
         contentType: "text/html",
-        body: "<!doctype html><html><body></body></html>",
+        // Browser-initiated favicon requests can bypass page routing. Keep the
+        // temporary document entirely local, including its browser UI assets.
+        body: '<!doctype html><html><head><link rel="icon" href="data:,"></head><body></body></html>',
       }),
     );
     for (const record of state.origins) {
