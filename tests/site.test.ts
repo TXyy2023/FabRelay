@@ -17,13 +17,17 @@ let browserContext: BrowserContext;
 let page: Page;
 let artifactDir: string;
 let effects: { kind: string; binding: Record<string, unknown> }[];
+// These fixtures verify business outcomes, not sub-second browser performance.
+// Keep the action budget bounded but allow shared CI runners to become ready.
+const browserStepTimeout = 5000;
+const suiteName = "JLC DOM adapter local fixtures (not real-site acceptance)";
 function context(
   input: Record<string, unknown> = {},
   previous?: Record<string, unknown>,
 ): AdapterContext {
   return {
     taskId: "fixture-task",
-    timeoutMs: 1000,
+    timeoutMs: browserStepTimeout,
     artifactDir,
     input,
     previous,
@@ -57,16 +61,18 @@ const binding = {
 };
 beforeAll(async () => {
   const chrome =
-    process.env.JLC_TEST_CHROME ??
-    (process.platform === "darwin"
-      ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-      : undefined);
+    process.env.JLC_TEST_BROWSER === "chromium"
+      ? chromium.executablePath()
+      : (process.env.JLC_TEST_CHROME ??
+        (process.platform === "darwin"
+          ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+          : undefined));
   browser = await chromium.launch({
     headless: true,
     ...(chrome && existsSync(chrome) ? { executablePath: chrome } : {}),
   });
   artifactDir = await mkdtemp(join(tmpdir(), "jlc-site-tests-"));
-});
+}, 30000);
 beforeEach(async () => {
   if (browserContext) await browserContext.close();
   browserContext = await browser.newContext();
@@ -80,7 +86,9 @@ afterAll(async () => {
   await browser?.close();
   await rm(artifactDir, { recursive: true, force: true });
 });
-describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
+// Login includes several separate bounded reads, so its total deadline must
+// exceed one browser action. No retry can turn a failed assertion into a pass.
+describe(suiteName, { timeout: 20000, retry: 0 }, () => {
   it("discovers native controls, JLC named choices and currently disabled options", async () => {
     await fixture(
       `<main id="leftcontent"><div><label>板子层数</label><button name="板子层数" class="checked">2</button><button name="板子层数">4</button><button name="板子层数" disabled>8</button></div><div><label for="quantity">数量</label><input id="quantity" type="number" required min="5" value="5"></div><div><label for="finish">喷镀</label><select id="finish"><option value="hasl">有铅喷锡</option><option value="enig">沉金</option></select></div></main>`,
@@ -102,9 +110,44 @@ describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
       page,
       context({ params: { 层数: "4" } }),
     );
-    expect(result.status).toBe("succeeded");
+    expect(result.status, JSON.stringify(result)).toBe("succeeded");
     expect(result.data.conditionalFields).toEqual(["叠层"]);
     expect(result.data.quote).toBe(null);
+    expect(effects).toEqual([]);
+  });
+  it("waits for a delayed parameter control and applies the choice exactly once", async () => {
+    await fixture(
+      `<div id="leftcontent"><label>层数</label><button name="层数" class="checked">2</button><button name="层数" onclick="window.clicks=(window.clicks||0)+1;this.previousElementSibling.classList.remove('checked');this.classList.add('checked')">4</button></div><div id="loading" style="position:fixed;inset:0;z-index:9999"></div>`,
+    );
+    // Start the delay after navigation, with the hit target still blocked.
+    await page.locator("#loading").evaluate((overlay) => {
+      setTimeout(() => overlay.remove(), 1500);
+    });
+    const result = await siteAdapter.run(
+      "pcb.set",
+      page,
+      context({ params: { 层数: "4" } }),
+    );
+    expect(result.status, JSON.stringify(result)).toBe("succeeded");
+    expect((result.data.decisions as any)["层数"].value).toBe("4");
+    expect(await page.evaluate(() => (window as any).clicks)).toBe(1);
+    expect(effects).toEqual([]);
+  });
+  it("hands off a permanently blocked parameter control without clicking it", async () => {
+    await fixture(
+      `<div id="leftcontent"><label>层数</label><button name="层数" class="checked">2</button><button name="层数" onclick="window.clicks=(window.clicks||0)+1;this.classList.add('checked')">4</button></div><div style="position:fixed;inset:0;z-index:9999"></div>`,
+    );
+    const result = await siteAdapter.run("pcb.set", page, {
+      ...context({ params: { 层数: "4" } }),
+      timeoutMs: 100,
+    });
+    expect(result).toMatchObject({
+      status: "handoff",
+      error: { code: "PAGE_OPERATION_INTERRUPTED" },
+      data: { cause: "TimeoutError" },
+    });
+    expect(await page.evaluate(() => (window as any).clicks ?? 0)).toBe(0);
+    expect((await discoverParameters(page))[0].value).toBe("2");
     expect(effects).toEqual([]);
   });
   it("reports dependencies that silently reset previously confirmed selections", async () => {
@@ -682,30 +725,41 @@ describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
     expect(result.data.account).toBe("TEST123A");
   });
 
-  it("requires an identity decision when quick login leads to registration or binding", async () => {
-    await page.route("https://member.jlc.com/**", (r) =>
-      r.fulfill({
-        contentType: "text/html; charset=utf-8",
-        body: '<iframe src="https://passport.jlc.com/window/login"></iframe>',
-      }),
-    );
-    await page.route("https://passport.jlc.com/**", (r) =>
-      r.fulfill({
-        contentType: "text/html; charset=utf-8",
-        body: `<button>扫码登录</button><button onclick="document.body.innerHTML='<h1>绑定手机号</h1><input><button>注册并登录</button>'">微信快捷登录</button>`,
-      }),
-    );
-    await page.goto("https://member.jlc.com/");
-    const result = await siteAdapter.run(
-      "auth.login",
-      page,
-      context({ method: "wechat" }),
-    );
-    expect(result.error?.code).toBe("LOGIN_IDENTITY_BINDING_REQUIRED");
-    expect(result.status).toBe("needs_input");
-    expect(result.data.authenticated).toBe(false);
-    expect(effects).toEqual([]);
-  });
+  it.each([0, 1500])(
+    "requires an identity decision after quick login with a %i ms overlay",
+    async (delayMs) => {
+      await page.route("https://member.jlc.com/**", (r) =>
+        r.fulfill({
+          contentType: "text/html; charset=utf-8",
+          body: '<iframe src="https://passport.jlc.com/window/login"></iframe>',
+        }),
+      );
+      await page.route("https://passport.jlc.com/**", (r) =>
+        r.fulfill({
+          contentType: "text/html; charset=utf-8",
+          body: `<button onclick="const overlay=document.createElement('div');overlay.style.cssText='position:fixed;inset:0;z-index:9999';document.body.append(overlay);setTimeout(()=>overlay.remove(),${delayMs})">扫码登录</button><button onclick="window.quickClicks=(window.quickClicks||0)+1;document.body.innerHTML='<h1>绑定手机号</h1><input><button>注册并登录</button>'">微信快捷登录</button>`,
+        }),
+      );
+      await page.goto("https://member.jlc.com/");
+      const result = await siteAdapter.run(
+        "auth.login",
+        page,
+        context({ method: "wechat" }),
+      );
+      expect(result.error?.code, JSON.stringify(result)).toBe(
+        "LOGIN_IDENTITY_BINDING_REQUIRED",
+      );
+      expect(result.status).toBe("needs_input");
+      expect(result.data.authenticated).toBe(false);
+      const passport = page
+        .frames()
+        .find((frame) => frame.url().includes("passport.jlc.com"))!;
+      expect(await passport.evaluate(() => (window as any).quickClicks)).toBe(
+        1,
+      );
+      expect(effects).toEqual([]);
+    },
+  );
 
   it("accepts the CLI default page one instead of treating it as an unsupported filter", async () => {
     await fixture(
