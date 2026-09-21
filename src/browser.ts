@@ -661,11 +661,18 @@ async function connect(
         "The retained task page no longer exists. Reconcile the business state before creating or repeating operations.",
       );
     // A Chrome startup tab can still have an initial navigation in flight.
-    // Create an initialized page instead of borrowing that tab (or an external
-    // user's blank tab). Explicit and recorded task targets remain unchanged.
+    // Never borrow that tab or an external user's blank tab.
     if (!page && config.engine === "obscura")
       page = context.pages().find((p) => p.url() === "about:blank");
-    page ??= await bounded(context.newPage(), timeout, "PAGE_CREATE_TIMEOUT");
+    if (!page) {
+      page = await bounded(context.newPage(), timeout, "PAGE_CREATE_TIMEOUT");
+      if (config.engine === "chrome") {
+        // newPage() can resolve before the initial document finishes loading.
+        // Wait for our own inert navigation, not a possibly stale load state,
+        // before callers navigate or install routes on the new target.
+        await page.goto("about:blank", { waitUntil: "load", timeout });
+      }
+    }
     const id = await bounded(pageId(page), timeout, "TARGET_LOOKUP_TIMEOUT");
     if (owned)
       await privateJson(join(directory, runtimeName), {
@@ -754,7 +761,10 @@ async function connect(
       },
     };
   } catch (error) {
-    if (browser) await browser.close().catch(() => {});
+    if (browser)
+      await bounded(browser.close(), 5000, "CDP_DISCONNECT_TIMEOUT").catch(
+        () => {},
+      );
     throw error;
   } finally {
     await rm(lock, { recursive: true, force: true });

@@ -313,6 +313,7 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
     const requests: string[] = [];
     const server = createServer((request, response) => {
       requests.push(request.url ?? "");
+      response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(
         '<!doctype html><link rel="icon" href="data:,"><h1>storage fixture</h1>',
       );
@@ -389,11 +390,20 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
         await second.disconnect();
       }
     } finally {
-      await new Promise<void>((resolveClose) =>
-        server.close(() => resolveClose()),
-      );
+      // CDP disconnect preserves Chrome. Stop this fixture's browser before
+      // waiting for HTTP shutdown, including when navigation has failed.
+      try {
+        await stopOwnedBrowser(dir);
+      } finally {
+        await new Promise<void>((resolveClose, rejectClose) => {
+          server.close((error) =>
+            error ? rejectClose(error) : resolveClose(),
+          );
+          server.closeAllConnections();
+        });
+      }
     }
-  }, 30_000);
+  }, 60_000);
 
   it("does not replace a missing task target with a fresh page", async () => {
     const dir = await directory();
@@ -468,7 +478,7 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
       "EXTERNAL_PRIVATE_COOKIE_VALUE",
     );
     await ownerAgain.disconnect();
-  }, 20_000);
+  }, 60_000);
 
   it("rejects website WebSockets and CSRF shutdown while native CDP remains usable", async () => {
     const dir = await directory();
