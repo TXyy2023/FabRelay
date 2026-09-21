@@ -26,13 +26,16 @@ import type { Operation, Status } from "./contracts.js";
 
 const program = new Command();
 program
-  .name("jlc-cli")
-  .version("1.0.0-dev.1")
+  .name("fabrelay")
+  .version("1.0.0-dev.2")
   .description(
-    "jlc.com business CLI. default mode never selects unconfirmed manufacturing parameters.",
+    "FabRelay: unofficial jlc.com business CLI. default mode never selects unconfirmed manufacturing parameters.",
   )
   .option("--json", "machine-readable result")
-  .option("--home <path>", "state root; defaults to JLC_HOME or ~/.jlc-cli")
+  .option(
+    "--home <path>",
+    "state root; FABRELAY_HOME or ~/.fabrelay (legacy data supported)",
+  )
   .option("--profile <name>", "isolated account profile", "default")
   .option("--timeout <ms>", "bounded browser step timeout", "30000")
   .showHelpAfterError()
@@ -224,7 +227,7 @@ program
   .option("--confirmed-by <name>", "作出本次授权的人类姓名或标识")
   .action(async (opts) => {
     const scope = [
-      "jlc-cli 是非官方社区工具，用于访问嘉立创中国站（jlc.com）。",
+      "FabRelay 是非官方社区工具，用于访问嘉立创中国站（jlc.com）。",
       "工具会在本机保存自有浏览器的登录状态，上传你明确指定的文件，并执行你明确调用的业务操作。",
       "初始化不等于下单或余额付款授权。创建订单须明确执行提交命令；每笔付款都须由人类确认当前账号、订单、金额及支付方式。",
       "default（默认）模式不会替你选择尚未确认的生产参数。",
@@ -248,7 +251,7 @@ program
       }
     }
     if (!accepted || !confirmedBy) {
-      const command = 'jlc-cli init --accept --confirmed-by "你的姓名"';
+      const command = 'fabrelay init --accept --confirmed-by "你的姓名"';
       if (program.opts().json)
         output("init", { scope, command }, "needs_confirmation");
       else {
@@ -598,7 +601,7 @@ handoff
 const skill = program.command("skill");
 const skillPath = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../skills/jlc-cli",
+  "../skills/fabrelay",
 );
 skill
   .command("path")
@@ -607,10 +610,10 @@ skill
   .command("install")
   .requiredOption(
     "--to <directory>",
-    "explicit skills root; installs jlc-cli child",
+    "explicit skills root; installs fabrelay child",
   )
   .action(async (opts) => {
-    const destination = resolve(opts.to, "jlc-cli");
+    const destination = resolve(opts.to, "fabrelay");
     if (await stat(destination).catch(() => undefined))
       throw new CliError(
         "DESTINATION_EXISTS",

@@ -3,9 +3,9 @@
 ## 订单查询
 
 ```text
-jlc-cli orders list --json
-jlc-cli orders show ORDER --json
-jlc-cli orders progress ORDER --json
+fabrelay orders list --json
+fabrelay orders show ORDER --json
+fabrelay orders progress ORDER --json
 ```
 
 用页面实际返回的订单号替换 `ORDER`。命令使用官网“PCB / FPC订单”共用列表；该入口的路径名称虽含 `pcb`，不能据此认定网站另有专用 FPC 路由。区分订单状态、付款状态、生产进度；未显示的金额或生产节点不推测。当前实站验证了现有 PCB 记录，FPC 记录字段及详情差异尚未验收，不能宣称已查全 FPC 订单。命令不包含取消、退款、发票或 FPC 新下单。
@@ -13,7 +13,7 @@ jlc-cli orders progress ORDER --json
 ## 余额付款
 
 ```text
-jlc-cli payment prepare ORDER --json
+fabrelay payment prepare ORDER --json
 ```
 
 从结果读取实际付款任务 ID 和摘要，向人类呈现当前账号、订单、应付金额及“嘉立创余额”支付方式。只支持余额支付，不自行切换其他支付渠道。
@@ -21,13 +21,13 @@ jlc-cli payment prepare ORDER --json
 得到人类对当前摘要的明确确认后，调用方才可传入确认标志，并填写摘要中的实际订单号和金额（下面金额仅作语法示例）：
 
 ```text
-jlc-cli payment confirm PREPARE_TASK --human-confirmed --order ORDER --amount 12.34 --json
+fabrelay payment confirm PREPARE_TASK --human-confirmed --order ORDER --amount 12.34 --json
 ```
 
 `--human-confirmed` 记录的是调用方对真实人类确认的声明，不是人类授权本身。不得自行决定同意、伪造该标志或修改本地确认记录。必须使用本次准备任务，不能复用其他订单确认。从返回的 `data.approvalId` 取得确认凭据，在其有效期内执行：
 
 ```text
-jlc-cli payment execute ORDER --approval APPROVAL_ID --json
+fabrelay payment execute ORDER --approval APPROVAL_ID --json
 ```
 
 `execute` 的位置参数是订单号，不是准备任务号。CLI 执行前重新核实账号、订单、金额和方式，并检查确认时效与一次性使用。任何一个绑定内容变化都使旧确认失效，应重新向人类展示实际摘要；初始化和 `auto` 均不能省略此确认。
@@ -39,7 +39,7 @@ jlc-cli payment execute ORDER --approval APPROVAL_ID --json
 ## 嘉小智
 
 ```text
-jlc-cli xiaozhi ask "请解释你们页面上显示的这个工艺选项" --json
+fabrelay xiaozhi ask "请解释你们页面上显示的这个工艺选项" --json
 ```
 
 一次命令发送一条文本并返回对应回复，可复用当前网站页面对话。核实返回消息对应本次问题，区分正在生成、完成与异常。不承诺附件、流式协议、可移植历史或独立多会话管理。

@@ -1,5 +1,14 @@
 # 标题图片来源
 
+## 当前标识：FabRelay
+
+- 文件：`fabrelay-banner.svg`，1440 × 480，可直接编辑的原创 SVG。
+- 制作日期：2026-09-22（Asia/Shanghai）。
+- 用途：项目更名后的 README 标题，终端提示符与电路走线组合，不采用厂商官方标识。
+- 以下为历史图片原始记录，保留以便追溯。
+
+## 历史标识：jlc-cli
+
 - 文件：`jlc-cli-banner.png`，2172 × 724 PNG。
 - 生成时间：2026-09-22（Asia/Shanghai）。
 - 方式：Codex 内置 imagegen 工具，原创社区项目标识，生成后原样复制到仓库。

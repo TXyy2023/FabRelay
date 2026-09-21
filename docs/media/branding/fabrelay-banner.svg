@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="480" viewBox="0 0 1440 480" role="img" aria-labelledby="title desc">
+  <title id="title">FabRelay</title>
+  <desc id="desc">An independent community CLI. PCB workflows, from your terminal.</desc>
+  <rect width="1440" height="480" rx="24" fill="#0b1423"/>
+  <g fill="none" stroke="#76e2be" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="108" y="114" width="240" height="252" rx="32"/>
+    <path d="m147 176 45 42-45 42m68 0h66M348 175h48v-31m-48 160h72v35M108 301H72v-41"/>
+    <circle cx="396" cy="134" r="10" fill="#0b1423"/>
+    <circle cx="420" cy="349" r="10" fill="#0b1423"/>
+    <circle cx="72" cy="250" r="10" fill="#0b1423"/>
+  </g>
+  <text x="486" y="143" fill="#76e2be" font-family="Arial, sans-serif" font-size="17" letter-spacing="5">COMMUNITY PROJECT</text>
+  <text x="480" y="259" fill="#f2f7fc" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="100" font-weight="700" letter-spacing="-4">FabRelay</text>
+  <text x="487" y="322" fill="#a3b5cc" font-family="Arial, sans-serif" font-size="27">PCB workflows, from your terminal.</text>
+</svg>

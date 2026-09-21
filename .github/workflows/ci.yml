@@ -20,10 +20,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node: [22.12.0]
     env:
-      JLC_TEST_BROWSER: chromium
+      FABRELAY_TEST_BROWSER: chromium
       # Ubuntu hosted runners restrict Chromium user namespaces. This applies
       # only to synthetic browser fixtures, never the production default.
-      JLC_CHROME_NO_SANDBOX: ${{ matrix.os == 'ubuntu-latest' && '1' || '0' }}
+      FABRELAY_CHROME_NO_SANDBOX: ${{ matrix.os == 'ubuntu-latest' && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

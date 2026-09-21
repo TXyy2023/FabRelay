@@ -8,6 +8,7 @@ import {
   readdir,
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { randomUUID, createHash } from "node:crypto";
 import type { BrowserConfig, BusinessResult, Operation } from "./contracts.js";
@@ -102,12 +103,20 @@ export interface Approval {
   consumedAt?: string;
   confirmedAt: string;
 }
+/** Reuse legacy profiles in place so retained browsers, tasks and approvals survive a rename. */
+export function defaultStateHome(
+  env: NodeJS.ProcessEnv = process.env,
+  userHome = homedir(),
+): string {
+  if (env.FABRELAY_HOME) return env.FABRELAY_HOME;
+  if (env.JLC_HOME) return env.JLC_HOME;
+  const current = join(userHome, ".fabrelay");
+  const legacy = join(userHome, ".jlc-cli");
+  return !existsSync(current) && existsSync(legacy) ? legacy : current;
+}
 export class State {
   readonly directory: string;
-  constructor(
-    home = process.env.JLC_HOME || join(homedir(), ".jlc-cli"),
-    profile = "default",
-  ) {
+  constructor(home = defaultStateHome(), profile = "default") {
     if (!/^[a-zA-Z0-9_-]{1,64}$/.test(profile))
       throw new CliError(
         "INVALID_PROFILE",
@@ -181,7 +190,7 @@ export class State {
     if (!c.consent)
       throw new CliError(
         "CONSENT_REQUIRED",
-        "Run jlc-cli init and explicitly accept the displayed authorization.",
+        "Run fabrelay init and explicitly accept the displayed authorization.",
       );
     return c;
   }

@@ -9,7 +9,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { tmpdir, homedir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { chromium } from "playwright";
@@ -41,9 +41,9 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 
 const directories: string[] = [];
 const chrome =
-  process.env.JLC_TEST_BROWSER === "chromium"
+  process.env.FABRELAY_TEST_BROWSER === "chromium"
     ? chromium.executablePath()
-    : (process.env.JLC_CHROME_EXECUTABLE ??
+    : (process.env.FABRELAY_CHROME_EXECUTABLE ??
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
 async function directory() {
   const value = await mkdtemp(join(tmpdir(), "jlc-browser-test-"));
@@ -101,7 +101,7 @@ describe("CDP endpoint boundaries", () => {
       "win32",
       {
         PATH: "D:/bin;E:/tools",
-        JLC_OBSCURA_EXECUTABLE: "C:/safe/obscura.exe",
+        FABRELAY_OBSCURA_EXECUTABLE: "C:/safe/obscura.exe",
       },
       "C:/Users/test",
     );
@@ -119,6 +119,63 @@ describe("CDP endpoint boundaries", () => {
       code: "BROWSER_NOT_INSTALLED",
     });
   });
+  it("prefers FabRelay variables while retaining legacy browser paths and settings", () => {
+    for (const engine of ["chrome", "obscura"] as const) {
+      const key = `${engine.toUpperCase()}_EXECUTABLE`;
+      expect(
+        executableCandidates(
+          engine,
+          "linux",
+          {
+            [`FABRELAY_${key}`]: "/new/browser",
+            [`JLC_${key}`]: "/old/browser",
+          },
+          "/test",
+        )[0],
+      ).toBe("/new/browser");
+      expect(
+        executableCandidates(
+          engine,
+          "linux",
+          {
+            [`JLC_${key}`]: "/old/browser",
+          },
+          "/test",
+        )[0],
+      ).toBe("/old/browser");
+    }
+    const candidates = executableCandidates("obscura", "linux", {}, "/test");
+    const current = join("/test", ".cache", "fabrelay", "obscura", "obscura");
+    const legacy = join("/test", ".cache", "jlc-cli", "obscura", "obscura");
+    expect(candidates).toContain(legacy);
+    expect(candidates.indexOf(current)).toBeLessThan(
+      candidates.indexOf(legacy),
+    );
+    const args = chromeLaunchArguments(
+      "/profile",
+      9222,
+      {
+        JLC_CHROME_HEADLESS: "0",
+        JLC_CHROME_NO_SANDBOX: "1",
+      },
+      "linux",
+    );
+    expect(args).not.toContain("--headless=new");
+    expect(args).toContain("--no-sandbox");
+    const preferred = chromeLaunchArguments(
+      "/profile",
+      9222,
+      {
+        FABRELAY_CHROME_HEADLESS: "1",
+        JLC_CHROME_HEADLESS: "0",
+        FABRELAY_CHROME_NO_SANDBOX: "0",
+        JLC_CHROME_NO_SANDBOX: "1",
+      },
+      "linux",
+    );
+    expect(preferred).toContain("--headless=new");
+    expect(preferred).not.toContain("--no-sandbox");
+  });
   it("keeps sandboxing enabled unless the Linux fixture override is explicit", () => {
     expect(
       chromeLaunchArguments("/private/profile", 9222, { CI: "true" }, "linux"),
@@ -127,7 +184,7 @@ describe("CDP endpoint boundaries", () => {
       chromeLaunchArguments(
         "/private/profile",
         9222,
-        { JLC_CHROME_NO_SANDBOX: "1" },
+        { FABRELAY_CHROME_NO_SANDBOX: "1" },
         "linux",
       ),
     ).toContain("--no-sandbox");
@@ -135,7 +192,7 @@ describe("CDP endpoint boundaries", () => {
       chromeLaunchArguments(
         "/private/profile",
         9222,
-        { JLC_CHROME_NO_SANDBOX: "1" },
+        { FABRELAY_CHROME_NO_SANDBOX: "1" },
         "darwin",
       ),
     ).not.toContain("--no-sandbox");
@@ -143,7 +200,7 @@ describe("CDP endpoint boundaries", () => {
       chromeLaunchArguments(
         "/private/profile",
         9222,
-        { JLC_CHROME_HEADLESS: "0" },
+        { FABRELAY_CHROME_HEADLESS: "0" },
         "linux",
       ),
     ).not.toContain("--headless=new");
@@ -607,8 +664,8 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
 });
 
 const obscura =
-  process.env.JLC_OBSCURA_EXECUTABLE ??
-  join(homedir(), "Library", "Caches", "jlc-cli", "obscura", "obscura");
+  executableCandidates("obscura").find((candidate) => existsSync(candidate)) ??
+  "";
 describe.skipIf(!existsSync(obscura))("real Obscura CDP compatibility", () => {
   it("retains the exact DOM and target across reconnection and persists login storage on restart", async () => {
     const dir = await directory();

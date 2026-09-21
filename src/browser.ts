@@ -131,10 +131,13 @@ export function chromeLaunchArguments(
   platform = process.platform,
 ): string[] {
   return [
-    ...(env.JLC_CHROME_HEADLESS === "0" ? [] : ["--headless=new"]),
+    ...((env.FABRELAY_CHROME_HEADLESS ?? env.JLC_CHROME_HEADLESS) === "0"
+      ? []
+      : ["--headless=new"]),
     // Never weaken production sandboxing automatically. This opt-in is used
     // only by the isolated Linux CI fixtures in the checked-in workflow.
-    ...(platform === "linux" && env.JLC_CHROME_NO_SANDBOX === "1"
+    ...(platform === "linux" &&
+    (env.FABRELAY_CHROME_NO_SANDBOX ?? env.JLC_CHROME_NO_SANDBOX) === "1"
       ? ["--no-sandbox"]
       : []),
     "--remote-debugging-address=127.0.0.1",
@@ -154,8 +157,8 @@ export function executableCandidates(
 ): string[] {
   const explicit =
     engine === "obscura"
-      ? env.JLC_OBSCURA_EXECUTABLE
-      : env.JLC_CHROME_EXECUTABLE;
+      ? (env.FABRELAY_OBSCURA_EXECUTABLE ?? env.JLC_OBSCURA_EXECUTABLE)
+      : (env.FABRELAY_CHROME_EXECUTABLE ?? env.JLC_CHROME_EXECUTABLE);
   const names =
     engine === "obscura"
       ? [platform === "win32" ? "obscura.exe" : "obscura"]
@@ -175,6 +178,15 @@ export function executableCandidates(
     engine === "obscura"
       ? [
           join(home, ".local", "bin", names[0]),
+          join(home, "Library", "Caches", "fabrelay", "obscura", names[0]),
+          join(
+            env.LOCALAPPDATA ?? join(home, "AppData", "Local"),
+            "fabrelay",
+            "obscura",
+            names[0],
+          ),
+          join(home, ".cache", "fabrelay", "obscura", names[0]),
+          // Legacy cache paths remain readable without relocating installed runtimes.
           join(home, "Library", "Caches", "jlc-cli", "obscura", names[0]),
           join(
             env.LOCALAPPDATA ?? join(home, "AppData", "Local"),
@@ -351,6 +363,7 @@ async function relayRecordAlive(
   record: RuntimeRecord,
   requireReady = true,
 ): Promise<boolean> {
+  // Keep the private /jlc/* wire protocol compatible with already-running brokers.
   try {
     const data = await jsonFetch(
       `${validateEndpoint(record.endpoint)}/jlc/status`,
@@ -392,7 +405,7 @@ async function ownedRuntime(
   const args = [
     ...(moduleFile.endsWith(".ts") ? ["--experimental-strip-types"] : []),
     moduleFile,
-    "--jlc-cdp-broker",
+    "--fabrelay-cdp-broker",
     launchFile,
   ];
   const child = spawn(process.execPath, args, {
@@ -612,7 +625,7 @@ async function connect(
       if (!relay || typeof relay.instance !== "string")
         throw new BrowserRuntimeError(
           "OBSCURA_RELAY_REQUIRED",
-          "Direct Obscura CDP destroys targets when a client disconnects. Use the retained jlc-cli relay endpoint or let jlc-cli launch Obscura.",
+          "Direct Obscura CDP destroys targets when a client disconnects. Use the retained FabRelay relay endpoint or let FabRelay launch Obscura.",
         );
     }
     const { websocket } = await discover(endpoint, timeout);
@@ -771,7 +784,7 @@ async function connect(
   }
 }
 
-/** Stops only a jlc-cli broker proven by its per-instance token; never kills a PID from disk. */
+/** Stops only a FabRelay broker proven by its per-instance token; never kills a PID from disk. */
 export async function stopOwnedBrowser(directory: string): Promise<boolean> {
   const record = await readJson<RuntimeRecord>(join(directory, runtimeName));
   if (!record || !(await relayRecordAlive(record))) return false;
@@ -1308,5 +1321,8 @@ async function broker(launchFile: string): Promise<void> {
   }
 }
 
-if (process.argv[2] === "--jlc-cdp-broker" && process.argv[3])
+if (
+  ["--fabrelay-cdp-broker", "--jlc-cdp-broker"].includes(process.argv[2]) &&
+  process.argv[3]
+)
   void broker(process.argv[3]);

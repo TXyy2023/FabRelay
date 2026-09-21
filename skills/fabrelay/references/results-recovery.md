@@ -17,8 +17,8 @@
 ## 观察同一任务
 
 ```text
-jlc-cli task show TASK --json
-jlc-cli task watch TASK --wait 300 --json
+fabrelay task show TASK --json
+fabrelay task watch TASK --wait 300 --json
 ```
 
 观察在有界等待内先核实实际页面和业务状态，条件满足后自动更新任务，无需 `resume` 命令。对原参数设置、提交或付款，若尚未发起且适配器核实前置条件已满足，可在同一操作锁内自动继续原步骤；提交与付款仍经过原有绑定、确认和防重检查。已有提交或扣款意图记录时只查证结果，不能重做。关闭观察进程后没有常驻业务观察器；浏览器中继可以继续保留会话，重新观察原任务才会继续核实业务。
@@ -26,9 +26,9 @@ jlc-cli task watch TASK --wait 300 --json
 ## 接管与释放
 
 1. 从当前错误结果读取 `data.cdp.endpoint`、`data.cdp.targetId`、当前步骤和诊断素材。同一端点可有多个页面：PCB 连续链通过 `--draft` 保留对应页面，独立查询可创建新页面；接管必须按该任务的 targetId 定位。浏览器不可达时说明接管不可用，保留已有任务资料。
-2. 调用 `jlc-cli handoff acquire TASK --owner agent --seconds 600` 获取控制租约，保存 `data.lease.id`。租约默认 600 秒，可设 1–3600 秒。仅连接所返回的同一会话与页面，不另开一个登录会话来冒充原现场。
+2. 调用 `fabrelay handoff acquire TASK --owner agent --seconds 600` 获取控制租约，保存 `data.lease.id`。租约默认 600 秒，可设 1–3600 秒。仅连接所返回的同一会话与页面，不另开一个登录会话来冒充原现场。
 3. 在原有授权内处理阻塞，如完成人类挑战、核对页面错误。租约期间 CLI 不并行写该任务页面。不得绕过生产参数选择或付款确认。
-4. 操作完成后调用 `jlc-cli handoff release TASK --lease LEASE_ID`。观察器在租约释放或到期后再次核实条件，自动推进可以安全继续的步骤。
+4. 操作完成后调用 `fabrelay handoff release TASK --lease LEASE_ID`。观察器在租约释放或到期后再次核实条件，自动推进可以安全继续的步骤。
 
 仅断开 CDP、关闭弹窗或页面发生变化不等于问题解决。文件、参数、账号或金额改变后，旧报价、检查摘要或付款确认必须失效。提交或支付结果仍未知时只能核实，不能自动重复发起。
 

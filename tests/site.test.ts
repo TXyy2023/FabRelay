@@ -46,7 +46,7 @@ const account = "<header>客编 TEST123A</header>";
 const upload = {
   taskId: "upload-fixture",
   fileName: "board.zip",
-  uploadName: "jlc-cli-upload-fixture-board.zip",
+  uploadName: "fabrelay-upload-fixture-board.zip",
   sha256: "1234",
   size: 20,
   uploadedAt: "2026-01-01T00:00:00Z",
@@ -61,9 +61,9 @@ const binding = {
 };
 beforeAll(async () => {
   const chrome =
-    process.env.JLC_TEST_BROWSER === "chromium"
+    process.env.FABRELAY_TEST_BROWSER === "chromium"
       ? chromium.executablePath()
-      : (process.env.JLC_TEST_CHROME ??
+      : (process.env.FABRELAY_TEST_CHROME ??
         (process.platform === "darwin"
           ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
           : undefined));
@@ -379,7 +379,7 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
   });
   it("requires parse success in the exact upload row, not just an order button", async () => {
     await fixture(
-      `${account}<table><tr><td>jlc-cli-upload-fixture-board</td><td><i title="处理失败"></i></td><td>立即下单</td></tr></table>`,
+      `${account}<table><tr><td>fabrelay-upload-fixture-board</td><td><i title="处理失败"></i></td><td>立即下单</td></tr></table>`,
     );
     const result = await siteAdapter.reconcile(
       "pcb.upload",
@@ -641,7 +641,7 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
     const bytes = Buffer.from("fixture file bytes");
     await writeFile(file, bytes);
     await fixture(
-      `${account}<input type="file" onchange="window.uploaded=true"><table><tr><td>jlc-cli-fixture-task-original</td><td><i title="处理成功"></i></td><td><button>立即下单</button></td></tr></table>`,
+      `${account}<input type="file" onchange="window.uploaded=true"><table><tr><td>fabrelay-fixture-task-original</td><td><i title="处理成功"></i></td><td><button>立即下单</button></td></tr></table>`,
     );
     const result = await siteAdapter.reconcile("pcb.upload", page, {
       ...context({ file }),
@@ -650,7 +650,7 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
     expect(result.status).toBe("succeeded");
     expect(result.data.upload).toMatchObject({
       taskId: "fixture-task",
-      uploadName: "jlc-cli-fixture-task-original.zip",
+      uploadName: "fabrelay-fixture-task-original.zip",
       sha256: createHash("sha256").update(bytes).digest("hex"),
     });
     expect(await page.evaluate(() => Boolean((window as any).uploaded))).toBe(
@@ -831,7 +831,7 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
 
   it("does not bind an unrelated open form to an upload without a form identity", async () => {
     await fixture(
-      `<div id="leftcontent"><label>数量<input name="数量" value="5"></label></div><aside id="rightcontent">jlc-cli-other-board</aside>`,
+      `<div id="leftcontent"><label>数量<input name="数量" value="5"></label></div><aside id="rightcontent">fabrelay-other-board</aside>`,
     );
     const result = await siteAdapter.run(
       "pcb.options",

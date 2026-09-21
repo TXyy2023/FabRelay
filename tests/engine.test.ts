@@ -3,6 +3,7 @@ import { mkdtemp, rm, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type Server } from "node:http";
+import { createHmac } from "node:crypto";
 import type {
   BrowserProvider,
   SiteAdapter,
@@ -403,7 +404,7 @@ describe("callbacks are business events, not credentials", () => {
     });
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     const address = server.address() as any;
-    process.env.JLC_TEST_CALLBACK_SECRET = "test-only-secret";
+    process.env.FABRELAY_TEST_CALLBACK_SECRET = "test-only-secret";
     try {
       const task = await engine.run(
         "auth.login",
@@ -411,7 +412,7 @@ describe("callbacks are business events, not credentials", () => {
         {
           callback: {
             url: `http://127.0.0.1:${address.port}/callback`,
-            secretEnv: "JLC_TEST_CALLBACK_SECRET",
+            secretEnv: "FABRELAY_TEST_CALLBACK_SECRET",
           },
         },
       );
@@ -422,10 +423,20 @@ describe("callbacks are business events, not credentials", () => {
       expect(task.delivery?.delivered).toBe(true);
       expect(received[0]).toEqual(received[1]);
       expect(JSON.stringify(received)).not.toContain("never-send-this");
-      expect(headers[0]["x-jlc-signature"]).toMatch(/^sha256=/);
+      const signature =
+        "sha256=" +
+        createHmac("sha256", process.env.FABRELAY_TEST_CALLBACK_SECRET!)
+          .update(JSON.stringify(received[0]))
+          .digest("hex");
+      for (const header of headers) {
+        expect(header["x-fabrelay-signature"]).toBe(signature);
+        expect(header["x-jlc-signature"]).toBe(signature);
+        expect(header["x-fabrelay-event-id"]).toBe(task.delivery?.eventId);
+        expect(header["x-jlc-event-id"]).toBe(task.delivery?.eventId);
+      }
       expect(calls).toBe(1);
     } finally {
-      delete process.env.JLC_TEST_CALLBACK_SECRET;
+      delete process.env.FABRELAY_TEST_CALLBACK_SECRET;
       await new Promise<void>((r, e) =>
         server.close((err) => (err ? e(err) : r())),
       );

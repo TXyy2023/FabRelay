@@ -66,10 +66,12 @@ export async function deliverCallback(
     const body = JSON.stringify(task.delivery.payload);
     const headers: Record<string, string> = {
       "content-type": "application/json",
+      "x-fabrelay-event-id": task.delivery.eventId,
+      // Existing receivers can continue deduplicating and verifying saved events.
       "x-jlc-event-id": task.delivery.eventId,
     };
     if (task.callback.secretEnv)
-      headers["x-jlc-signature"] =
+      headers["x-fabrelay-signature"] = headers["x-jlc-signature"] =
         "sha256=" +
         createHmac("sha256", process.env[task.callback.secretEnv]!)
           .update(body)

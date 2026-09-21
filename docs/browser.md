@@ -4,11 +4,17 @@ The default engine is Obscura. Chrome is an explicit compatibility option; a mis
 
 ## Installation and discovery
 
-Install the official Obscura archive for your OS/CPU from [Obscura Releases](https://github.com/h4ckf0r0day/obscura/releases). Keep the extracted binary and its worker together. The runtime checks an explicit executable path, `JLC_OBSCURA_EXECUTABLE`, `PATH`, and user cache locations. Chrome uses an explicit executable path, `JLC_CHROME_EXECUTABLE`, `PATH`, and standard macOS, Windows and Linux installation locations. No normal Chrome profile is opened or modified.
+Install the official Obscura archive for your OS/CPU from [Obscura Releases](https://github.com/h4ckf0r0day/obscura/releases). Keep the extracted binary and its worker together. The runtime checks an explicit executable path, `FABRELAY_OBSCURA_EXECUTABLE`, `PATH`, and user cache locations. Chrome uses an explicit executable path, `FABRELAY_CHROME_EXECUTABLE`, `PATH`, and standard macOS, Windows and Linux installation locations. No normal Chrome profile is opened or modified.
 
-Supported cache layouts are `~/Library/Caches/jlc-cli/obscura/obscura` on macOS, `~/.cache/jlc-cli/obscura/obscura` on Linux, and `%LOCALAPPDATA%/jlc-cli/obscura/obscura.exe` on Windows. On Windows the user may also put the executable on `PATH`.
+Supported cache layouts are `~/Library/Caches/fabrelay/obscura/obscura` on macOS, `~/.cache/fabrelay/obscura/obscura` on Linux, and `%LOCALAPPDATA%/fabrelay/obscura/obscura.exe` on Windows. On Windows the user may also put the executable on `PATH`.
 
 The CLI does not download and execute a browser as a hidden side effect. Installation is separate and inspectable. Cross-platform discovery and launch arguments are implemented; only the host environments actually listed in the verification record are accepted as runtime-verified.
+
+## Rename compatibility
+
+FabRelay prefers `FABRELAY_OBSCURA_EXECUTABLE`, `FABRELAY_CHROME_EXECUTABLE`, `FABRELAY_CHROME_HEADLESS`, and `FABRELAY_CHROME_NO_SANDBOX`. Each falls back to its previous `JLC_` equivalent when the new variable is unset. The old `jlc-cli/obscura` cache layouts are still searched after the new cache layouts. Explicit executable configuration keeps precedence.
+
+When neither `--home` nor a home environment variable is specified, `~/.fabrelay` is used for new installations. If only `~/.jlc-cli` exists, it is reused in place. The old private broker endpoints and instance header are retained so an already-running browser can be reconnected without replacing its page or login state. New broker processes use `--fabrelay-cdp-broker`; the old startup flag remains accepted for compatibility.
 
 ## Session ownership and handoff
 
@@ -16,11 +22,11 @@ The runtime launches a detached local broker and a separate browser profile insi
 
 The returned HTTP endpoint exposes `/json/version` and a browser WebSocket for ordinary Playwright `connectOverCDP`. Only one downstream CDP client may connect at a time. Another client receives HTTP 409. Release the CLI connection before an Agent acquires the handoff connection, and disconnect the Agent before the CLI resumes. A business task's separate control lease still decides whether writes are authorized. Reconnection itself does not authorize a submission or payment.
 
-Both browser and broker listen on `127.0.0.1`. Remote/public endpoints, credential-bearing URLs, query tokens, redirects to other discovery servers, and browser-origin connections to the broker are rejected. Direct Chrome endpoints can be used explicitly and are only disconnected, never stopped. Direct raw Obscura endpoints are rejected because they cannot retain the same page after disconnect; use the jlc-cli relay endpoint instead.
+Both browser and broker listen on `127.0.0.1`. Remote/public endpoints, credential-bearing URLs, query tokens, redirects to other discovery servers, and browser-origin connections to the broker are rejected. Direct Chrome endpoints can be used explicitly and are only disconnected, never stopped. Direct raw Obscura endpoints are rejected because they cannot retain the same page after disconnect; use the fabrelay relay endpoint instead.
 
 The broker rejects every `Origin` header, including empty or opaque `null` origins, and browser fetch metadata. Its Host must match the returned loopback endpoint. Native Playwright/Node clients send no Origin and remain supported. Shutdown additionally requires POST and the matching instance token; even a request containing the correct token is rejected when it originates in a web page.
 
-Chrome starts headless by default. Set `JLC_CHROME_HEADLESS=0` before starting an explicitly selected Chrome profile to open a visible, dedicated browser window for a human to complete a CAPTCHA or other verification. If the profile already has a retained broker, stop it first so the launch setting takes effect. The human uses that same page while the task is handed off; the Agent then releases its CDP client before the CLI reconnects and verifies the result. Obscura itself remains headless. A normal website is not permitted to connect directly to the broker as a CDP frontend.
+Chrome starts headless by default. Set `FABRELAY_CHROME_HEADLESS=0` before starting an explicitly selected Chrome profile to open a visible, dedicated browser window for a human to complete a CAPTCHA or other verification. If the profile already has a retained broker, stop it first so the launch setting takes effect. The human uses that same page while the task is handed off; the Agent then releases its CDP client before the CLI reconnects and verifies the result. Obscura itself remains headless. A normal website is not permitted to connect directly to the broker as a CDP frontend.
 
 Initialization locks carry a unique owner nonce. Recovery of a proven exited owner uses a permanent election marker for that old nonce and rechecks the owner before removing its lock, so a delayed recovery contender cannot delete a new owner's lock. Locks with missing/legacy ownership metadata are preserved for inspection rather than guessed stale. Do not remove the election markers while provider processes may still be running.
 
@@ -34,7 +40,7 @@ An explicit external endpoint reuses the browser's live session only. Its `save(
 
 Live browser stdout/stderr are not copied into normal diagnostics. If the browser exits before CDP startup, `browser-startup.json` records its exit code/signal and a sanitized stderr excerpt with private file permissions. Capture stops at 16 KiB of startup input and the stored/output excerpt is limited to 4 KiB; URL credentials/query/fragment, credential headers and secret assignments are removed. After CDP becomes available, stderr is drained and discarded. The returned page diagnostic snapshot contains a sanitized URL, page state, and a structural element inventory. It excludes element values, page text, HTML, scripts and storage. Generic screenshots are deliberately omitted because they could expose account data or credentials; login QR artifacts are handled explicitly by the login adapter.
 
-Production Chrome retains its sandbox by default. The isolated Ubuntu CI fixtures explicitly set `JLC_CHROME_NO_SANDBOX=1` because hosted-runner user-namespace restrictions can prevent the downloaded Chromium binary from starting. The override only adds `--no-sandbox` on Linux; neither `CI=true` nor a startup failure enables it automatically. This follows the sandbox setting used by the existing Playwright fixture launcher and does not establish a recommended production configuration. See Chromium's [AppArmor user-namespace restrictions](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md).
+Production Chrome retains its sandbox by default. The isolated Ubuntu CI fixtures explicitly set `FABRELAY_CHROME_NO_SANDBOX=1` because hosted-runner user-namespace restrictions can prevent the downloaded Chromium binary from starting. The override only adds `--no-sandbox` on Linux; neither `CI=true` nor a startup failure enables it automatically. This follows the sandbox setting used by the existing Playwright fixture launcher and does not establish a recommended production configuration. See Chromium's [AppArmor user-namespace restrictions](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md).
 
 ## Obscura protocol compatibility
 
@@ -48,7 +54,7 @@ Upstream documents incomplete browser APIs and storage-state limitations in [Pla
 
 Environment: macOS arm64, Node 25.3.0, installed Google Chrome, official Obscura 0.2.3 macOS arm64 rendering archive. Downloaded archive SHA-256: `45653cfad226f1c9b415603a2ed59477fcbd6335c742338ce133c05de0bdd056`. This recorded hash identifies the tested download; it is not an upstream signature verification.
 
-Actual Chrome checks cover a separate CLI process exiting, reuse of the exact target/DOM, rejecting a second CDP client, cookie/localStorage persistence through restart, private file modes, diagnostic redaction, missing-target failure and safe external-browser disconnection. The automated tests are in `tests/browser.test.ts`; set `JLC_TEST_BROWSER=chromium` to use Playwright's installed Chromium in CI.
+Actual Chrome checks cover a separate CLI process exiting, reuse of the exact target/DOM, rejecting a second CDP client, cookie/localStorage persistence through restart, private file modes, diagnostic redaction, missing-target failure and safe external-browser disconnection. The automated tests are in `tests/browser.test.ts`; set `FABRELAY_TEST_BROWSER=chromium` to use Playwright's installed Chromium in CI.
 
 The restart test deliberately removes Chrome's native Local Storage directory after shutdown, verifies the saved snapshot, then checks restoration before any real request reaches its local fixture server. It also clears storage and reloads to ensure recovery does not reinsert an old login value.
 
@@ -62,4 +68,4 @@ The subsequent real login check on the same version did **not** pass. At `https:
 
 Observed limitation: Playwright `page.setContent` using its default `load` wait timed out in Obscura 0.2.3; real navigation with `waitUntil: 'domcontentloaded'` succeeded. This API difference remains documented rather than being reported as site business success.
 
-The [CI baseline at 6a57534](https://github.com/TXyy2023/jlc-cli/actions/runs/35602632946) passed on Windows Server 2025 x64, Ubuntu 24.04.5 x64 and macOS 26.6.2 arm64 with Node 22.12.0 and real Playwright Chromium fixtures. These runners did not install Obscura or use real JLC accounts. See the [acceptance matrix](acceptance.md) for the separate runtime and business evidence boundaries.
+The [CI baseline at 6a57534](https://github.com/TXyy2023/FabRelay/actions/runs/35602632946) passed on Windows Server 2025 x64, Ubuntu 24.04.5 x64 and macOS 26.6.2 arm64 with Node 22.12.0 and real Playwright Chromium fixtures. These runners did not install Obscura or use real JLC accounts. See the [acceptance matrix](acceptance.md) for the separate runtime and business evidence boundaries.
