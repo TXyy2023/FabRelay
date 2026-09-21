@@ -1,0 +1,173 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import { existsSync } from 'node:fs';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { discoverParameters, siteAdapter } from '../src/site.js';
+import type { AdapterContext } from '../src/contracts.js';
+let browser: Browser; let browserContext: BrowserContext; let page: Page; let artifactDir: string;
+let effects: { kind: string; binding: Record<string, unknown> }[];
+function context(input: Record<string, unknown> = {}, previous?: Record<string, unknown>): AdapterContext { return {taskId:'fixture-task',timeoutMs:1000,artifactDir,input,previous,beforeEffect:async(kind,binding)=>{effects.push({kind,binding});}}; }
+async function fixture(html:string){await page.route('https://www.jlc.com/**',route=>route.fulfill({contentType:'text/html; charset=utf-8',body:html}));await page.goto('https://www.jlc.com/newOrder/#/pcb/pcbPlaceOrder');}
+const account='<header>客编 TEST123A</header>';
+const upload={taskId:'upload-fixture',fileName:'board.zip',uploadName:'jlc-cli-upload-fixture-board.zip',sha256:'1234',size:20,uploadedAt:'2026-01-01T00:00:00Z',formPageIdentity:'https://www.jlc.com/newOrder/#/pcb/pcbPlaceOrder'};
+const binding={account:'TEST123A',orderId:'Y1234',amount:'12.30',currency:'CNY',method:'balance'};
+beforeAll(async()=>{
+  const chrome=process.env.JLC_TEST_CHROME??(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':undefined);
+  browser=await chromium.launch({headless:true,...(chrome&&existsSync(chrome)?{executablePath:chrome}:{})});artifactDir=await mkdtemp(join(tmpdir(),'jlc-site-tests-'));
+});
+beforeEach(async()=>{if(browserContext)await browserContext.close();browserContext=await browser.newContext();await browserContext.route('https://member.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:account}));page=await browserContext.newPage();effects=[];});
+afterAll(async()=>{await browser?.close();await rm(artifactDir,{recursive:true,force:true});});
+describe('JLC DOM adapter local fixtures (not real-site acceptance)',()=>{
+  it('discovers native controls, JLC named choices and currently disabled options',async()=>{
+    await fixture(`<main id="leftcontent"><div><label>板子层数</label><button name="板子层数" class="checked">2</button><button name="板子层数">4</button><button name="板子层数" disabled>8</button></div><div><label for="quantity">数量</label><input id="quantity" type="number" required min="5" value="5"></div><div><label for="finish">喷镀</label><select id="finish"><option value="hasl">有铅喷锡</option><option value="enig">沉金</option></select></div></main>`);
+    const params=await discoverParameters(page);expect(params.map(p=>p.key)).toEqual(['板子层数','数量','喷镀']);expect(params[0].value).toBe('2');expect(params[0].choices[2].disabled).toBe(true);expect(params[1].constraints.min).toBe('5');expect(params[1].required).toBe(true);expect(params[2].choices[1].value).toBe('enig');
+  });
+  it('sets exact requested choices and discovers conditional fields',async()=>{
+    await fixture(`<div id="leftcontent"><div><label>层数</label><button name="层数" class="checked">2</button><button name="层数" onclick="this.previousElementSibling.classList.remove('checked');this.classList.add('checked');document.getElementById('conditional').hidden=false">4</button></div><div id="conditional" hidden><label for="stack">叠层</label><select id="stack"><option>标准</option><option>自定义</option></select></div></div>`);
+    const result=await siteAdapter.run('pcb.set',page,context({params:{'层数':'4'}}));expect(result.status).toBe('succeeded');expect(result.data.conditionalFields).toEqual(['叠层']);expect(result.data.quote).toBe(null);expect(effects).toEqual([]);
+  });
+  it('reports dependencies that silently reset previously confirmed selections',async()=>{
+    await fixture(`<div id="leftcontent"><div><label>层数</label><button name="层数" class="checked">2</button><button name="层数" onclick="this.previousElementSibling.classList.remove('checked');this.classList.add('checked');document.querySelector('#color').value='绿'">4</button></div><label for="color">颜色</label><select id="color"><option>绿</option><option selected>蓝</option></select></div>`);
+    const result=await siteAdapter.run('pcb.set',page,context({params:{'层数':'4'}},{decisions:{'颜色':{value:'蓝',source:'user'}}}));expect(result.status).toBe('needs_input');expect(result.error?.code).toBe('PARAMETER_CONFLICT');
+  });
+  it('does not treat site defaults as user decisions or quote without file binding',async()=>{
+    await fixture(`<div id="leftcontent"><label for="quantity">数量</label><input id="quantity" value="5"></div><aside id="rightcontent">总价 ￥12.30</aside>`);
+    const result=await siteAdapter.run('pcb.quote',page,context({}, {upload}));expect(result.error?.code).toBe('PARAMETER_DECISIONS_REQUIRED');expect(effects).toEqual([]);
+  });
+  it('rejects automatic debit before order submission',async()=>{
+    await fixture(`${account}<div id="leftcontent"><div><label>确认订单方式</label><button name="确认订单方式" class="checked">系统自动扣款并确认</button><button name="确认订单方式">手动确认订单</button></div></div><aside id="rightcontent">总价 ￥12.30</aside><button id="submitBtn" onclick="window.submitted=true">提交订单</button>`);
+    const result=await siteAdapter.run('pcb.submit',page,context({}, {upload,decisions:{'确认订单方式':{value:'系统自动扣款并确认'}}}));expect(result.error?.code).toBe('AUTOMATIC_DEBIT_NOT_ALLOWED');expect(await page.evaluate(()=>Boolean((window as any).submitted))).toBe(false);expect(effects).toEqual([]);
+  });
+  it('prepares a binding only from one explicit order, amount and selected balance method',async()=>{
+    await fixture(`${account}<div role="dialog">订单编号：Y1234 <p>应付金额：￥12.30</p><label><input type="radio" checked>余额支付</label><button>确认支付</button></div>`);
+    const result=await siteAdapter.run('payment.prepare',page,context({orderId:'Y1234'}));expect(result.status).toBe('succeeded');expect(result.data.binding).toEqual(binding);expect(effects).toEqual([]);
+  });
+  it('rejects a changed confirmed amount without invoking payment callback',async()=>{
+    await fixture(`${account}<div role="dialog">订单编号：Y1234 <p>应付金额：￥12.31</p><label><input type="radio" checked>余额支付</label><button onclick="window.paid=true">确认支付</button></div>`);
+    const result=await siteAdapter.run('payment.execute',page,context({orderId:'Y1234'},{binding}));expect(result.error?.code).toBe('PAYMENT_BINDING_CHANGED');expect(await page.evaluate(()=>Boolean((window as any).paid))).toBe(false);expect(effects).toEqual([]);
+  });
+  it('records payment intent before clicking and verifies exact order success',async()=>{
+    await fixture(`${account}<div role="dialog">订单编号：Y1234 <p>应付金额：￥12.30</p><label><input type="radio" checked>余额支付</label><button onclick="this.parentElement.innerHTML='订单编号：Y1234 支付成功 余额支付 ￥12.30'">确认支付</button></div>`);
+    const ctx=context({orderId:'Y1234'},{binding});ctx.beforeEffect=async(kind,b)=>{expect(await page.getByRole('button',{name:'确认支付'}).count()).toBe(1);effects.push({kind,binding:b});};
+    const result=await siteAdapter.run('payment.execute',page,ctx);expect(effects).toEqual([{kind:'pay',binding}]);expect(result.status).toBe('succeeded');expect(result.data.paymentStatus).toBe('paid');expect(result.data.orderId).toBe('Y1234');
+  });
+  it('never counts unrelated payment success and reconcile never clicks again',async()=>{
+    await fixture(`${account}<div role="dialog">订单编号：Y9999 支付成功 余额支付 ￥12.30</div><button onclick="window.paid=true">确认支付</button>`);
+    const result=await siteAdapter.reconcile('payment.execute',page,context({orderId:'Y1234'},{binding}));expect(result.status).toBe('unknown');expect(await page.evaluate(()=>Boolean((window as any).paid))).toBe(false);expect(effects).toEqual([]);
+  });
+  it('returns unknown after a payment closes without success evidence',async()=>{
+    await fixture(`${account}<div role="dialog">订单编号：Y1234 <p>应付金额：￥12.30</p><label><input type="radio" checked>余额支付</label><button onclick="this.parentElement.remove()">确认支付</button></div>`);
+    const result=await siteAdapter.run('payment.execute',page,context({orderId:'Y1234'},{binding}));expect(result.status).toBe('unknown');expect(effects).toHaveLength(1);
+  });
+  it('reads passport iframe methods and does not mislabel missing QR as a QR artifact',async()=>{
+    await page.route('https://member.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:'<p>客编 未设置归属</p><iframe src="https://passport.jlc.com/window/login"></iframe>'}));
+    await page.route('https://passport.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:'<button>扫码登录</button><button>账号登录</button><button>手机号登录</button><input type="checkbox">下次自动登录'}));
+    await page.goto('https://member.jlc.com/');const result=await siteAdapter.run('auth.login',page,context({method:'qr'}));expect(result.error?.code).toBe('QR_UNAVAILABLE');expect(result.data.qr).toBe(null);expect(result.data.availableMethods).toEqual(['qr','password','sms']);
+  });
+  it('reconcile of submit cannot click a submit button or assume a previous order is this task',async()=>{
+    await fixture(`${account}<div class="tableListBox">订单编号：Y1234 未支付 另一个文件 ￥12.30</div><button id="submitBtn" onclick="window.submitted=true">提交订单</button>`);
+    const result=await siteAdapter.reconcile('pcb.submit',page,context({}, {upload}));expect(result.status).toBe('unknown');expect(await page.evaluate(()=>Boolean((window as any).submitted))).toBe(false);expect(effects).toEqual([]);
+  });
+  it('requires parse success in the exact upload row, not just an order button',async()=>{
+    await fixture(`${account}<table><tr><td>jlc-cli-upload-fixture-board</td><td><i title="处理失败"></i></td><td>立即下单</td></tr></table>`);
+    const result=await siteAdapter.reconcile('pcb.upload',page,context({}, {upload}));expect(result.status).toBe('failed');expect(result.error?.code).toBe('FILE_PARSE_FAILED');
+  });
+  it('keeps login reconciliation pending without a confirmed account',async()=>{
+    await fixture('<p>客户中心</p><button>扫码登录</button>');
+    const result=await siteAdapter.reconcile('auth.login',page,context());expect(result.status).toBe('handoff');expect(result.data.authenticated).toBe(false);
+  });
+  it('rejects unsupported order pagination instead of silently ignoring it',async()=>{
+    await fixture(account);const result=await siteAdapter.run('orders.list',page,context({page:3,status:'待付款'}));expect(result.error?.code).toBe('ORDER_FILTER_NOT_SUPPORTED');
+  });
+
+  it('rejects a stale account header when the login iframe is visible',async()=>{
+    await page.route('https://passport.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:'<button>账号登录</button><input type="password">'}));
+    await fixture(`${account}<iframe src="https://passport.jlc.com/window/login"></iframe>`);
+    const result=await siteAdapter.reconcile('auth.login',page,context());expect(result.status).toBe('handoff');expect(result.data.authenticated).toBe(false);
+  });
+
+  it('invalidates file context when a different form navigation is visible',async()=>{
+    await fixture('<div id="leftcontent"><label for="quantity">数量</label><input id="quantity" value="5"></div>');
+    const result=await siteAdapter.run('pcb.quote',page,context({}, {upload:{...upload,formPageIdentity:'https://www.jlc.com/newOrder/?radomId=0.123#/pcb/pcbPlaceOrder'}}));expect(result.error?.code).toBe('FILE_CONTEXT_CHANGED');expect(result.data.quote).toBe(null);
+  });
+
+  it('resumes pre-effect payment only when every confirmed binding field still matches',async()=>{
+    await fixture(`${account}<div role="dialog">订单编号：Y1234 <p>应付金额：￥12.30</p><label><input type="radio" checked>余额支付</label><button onclick="window.paid=true">确认支付</button></div>`);
+    const ctx={...context({orderId:'Y1234'},{binding}),effectStarted:false};
+    const result=await siteAdapter.reconcile('payment.execute',page,ctx);expect(result.resume).toBe(true);expect(effects).toEqual([]);expect(await page.evaluate(()=>Boolean((window as any).paid))).toBe(false);
+    await page.locator('p').evaluate(p=>p.textContent='应付金额：￥12.31');
+    const changed=await siteAdapter.reconcile('payment.execute',page,ctx);expect(changed.resume).toBeUndefined();expect(changed.error?.code).toBe('PAYMENT_BINDING_CHANGED');
+  });
+
+  it('never resumes payment after the side-effect boundary has started',async()=>{
+    await fixture(`${account}<div role="dialog">订单编号：Y1234 <p>应付金额：￥12.30</p><label><input type="radio" checked>余额支付</label><button onclick="window.paid=true">确认支付</button></div>`);
+    const result=await siteAdapter.reconcile('payment.execute',page,{...context({orderId:'Y1234'},{binding}),effectStarted:true});expect(result.resume).toBeUndefined();expect(result.status).toBe('unknown');expect(effects).toEqual([]);expect(await page.evaluate(()=>Boolean((window as any).paid))).toBe(false);
+  });
+
+  it('rejects account changes even when the payment task page still shows the old header',async()=>{
+    await browserContext.route('https://member.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:'客编 OTHER456'}));
+    await fixture(`${account}<div role="dialog">订单编号：Y1234 <p>应付金额：￥12.30</p><label><input type="radio" checked>余额支付</label><button>确认支付</button></div>`);
+    const result=await siteAdapter.reconcile('payment.execute',page,{...context({orderId:'Y1234'},{binding}),effectStarted:false});expect(result.error?.code).toBe('PAYMENT_BINDING_CHANGED');expect(result.resume).toBeUndefined();expect(effects).toEqual([]);
+  });
+
+  it('resumes a pre-effect submit only with the same account, file, explicit choices and original quote',async()=>{
+    await fixture(`${account}<div id="leftcontent"><div><label>确认订单方式</label><button name="确认订单方式" class="checked">手动确认订单</button><button name="确认订单方式">系统自动扣款并确认</button></div></div><aside id="rightcontent">总价 ￥12.30</aside><button id="submitBtn" onclick="window.submitted=true">提交订单</button>`);
+    const quoted=await siteAdapter.run('pcb.quote',page,context({}, {account:'TEST123A',upload,decisions:{'确认订单方式':{value:'手动确认订单'}}}));expect(quoted.status).toBe('succeeded');
+    const ctx={...context({}, {...quoted.data,account:'TEST123A'}),effectStarted:false};
+    const result=await siteAdapter.reconcile('pcb.submit',page,ctx);expect(result.resume).toBe(true);expect(effects).toEqual([]);expect(await page.evaluate(()=>Boolean((window as any).submitted))).toBe(false);
+    await page.locator('#rightcontent').evaluate(p=>p.textContent='总价 ￥12.31');
+    const changed=await siteAdapter.reconcile('pcb.submit',page,ctx);expect(changed.error?.code).toBe('QUOTE_CHANGED');expect(changed.resume).toBeUndefined();expect(changed.data.quote).toBe(null);
+    const started=await siteAdapter.reconcile('pcb.submit',page,{...ctx,effectStarted:true});expect(started.status).toBe('unknown');expect(started.resume).toBeUndefined();
+  });
+
+  it('does not resume submit from an identical-looking form with a different file identity',async()=>{
+    await fixture(`${account}<div id="leftcontent">参数页面</div><button id="submitBtn">提交订单</button>`);
+    const result=await siteAdapter.reconcile('pcb.submit',page,{...context({}, {account:'TEST123A',upload:{...upload,formPageIdentity:'https://www.jlc.com/newOrder/?radomId=another#/pcb/pcbPlaceOrder'}}),effectStarted:false});expect(result.error?.code).toBe('FILE_CONTEXT_CHANGED');expect(result.resume).toBeUndefined();expect(effects).toEqual([]);
+  });
+
+  it('requests resuming original explicit parameter changes without applying them in reconcile',async()=>{
+    await fixture(`${account}<div id="leftcontent"><label for="layers">层数</label><select id="layers"><option>2</option><option>4</option></select><label for="color">颜色</label><select id="color"><option>绿</option><option>蓝</option></select></div>`);
+    const ctx={...context({params:{'层数':'4'}},{upload,account:'TEST123A',decisions:{'颜色':{value:'绿'}}}),effectStarted:false};
+    const result=await siteAdapter.reconcile('pcb.set',page,ctx);expect(result.resume).toBe(true);expect(await page.locator('#layers').inputValue()).toBe('2');expect(effects).toEqual([]);
+    await page.locator('#color').selectOption('蓝');
+    const changed=await siteAdapter.reconcile('pcb.set',page,ctx);expect(changed.error?.code).toBe('PARAMETER_CONFLICT');expect(changed.resume).toBeUndefined();
+  });
+
+  it('reconstructs the unique prior upload from the original task and file without sending again',async()=>{
+    const file=join(artifactDir,'original.zip');const bytes=Buffer.from('fixture file bytes');await writeFile(file,bytes);
+    await fixture(`${account}<input type="file" onchange="window.uploaded=true"><table><tr><td>jlc-cli-fixture-task-original</td><td><i title="处理成功"></i></td><td><button>立即下单</button></td></tr></table>`);
+    const result=await siteAdapter.reconcile('pcb.upload',page,{...context({file}),effectStarted:false});expect(result.status).toBe('succeeded');expect(result.data.upload).toMatchObject({taskId:'fixture-task',uploadName:'jlc-cli-fixture-task-original.zip',sha256:createHash('sha256').update(bytes).digest('hex')});expect(await page.evaluate(()=>Boolean((window as any).uploaded))).toBe(false);expect(effects).toEqual([]);
+  });
+
+  it('switches an official blank-URL WeChat child from quick login to QR without hidden-template collisions',async()=>{
+    await page.route('https://member.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:'<iframe src="https://passport.jlc.com/window/login"></iframe>'}));
+    await page.route('https://passport.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:`<button>扫码登录</button><button>账号登录</button><button>手机号登录</button><iframe srcdoc="<div hidden><button>使用其他头像、昵称或账号</button></div><button onclick=&quot;document.querySelector('canvas').hidden=false;this.remove()&quot;>使用其他头像、昵称或账号</button><canvas hidden aria-label='登录二维码' width='120' height='120'></canvas>"></iframe>`}));
+    await page.goto('https://member.jlc.com/');const result=await siteAdapter.run('auth.login',page,context({method:'qr'}));expect(result.error?.code).toBe('LOGIN_QR_SCAN_REQUIRED');expect(result.data.qr).toMatchObject({source:'official-login-frame'});expect(effects).toEqual([]);
+  });
+
+  it('does not press a lookalike WeChat switch in a frame outside passport ancestry',async()=>{
+    await page.route('https://member.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:`<iframe srcdoc="<button onclick=&quot;document.body.dataset.clicked='yes'&quot;>使用其他头像、昵称或账号</button>"></iframe>`}));
+    await page.goto('https://member.jlc.com/');const result=await siteAdapter.run('auth.login',page,context({method:'qr'}));expect(result.error?.code).toBe('QR_UNAVAILABLE');const child=page.frames().find(f=>f!==page.mainFrame())!;expect(await child.locator('body').getAttribute('data-clicked')).toBe(null);
+  });
+
+  it('completes explicit WeChat quick login only after the customer identity appears',async()=>{
+    await page.route('https://member.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:`<script>window.addEventListener('message',e=>{if(e.origin==='https://passport.jlc.com'&&e.data==='logged-in')document.body.innerHTML='客编 TEST123A'})</script><iframe src="https://passport.jlc.com/window/login"></iframe>`}));
+    await page.route('https://passport.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:`<button>扫码登录</button><button onclick="parent.postMessage('logged-in','https://member.jlc.com')">微信快捷登录</button>`}));
+    await page.goto('https://member.jlc.com/');const result=await siteAdapter.run('auth.login',page,context({method:'wechat'}));expect(result.status).toBe('succeeded');expect(result.data.authenticated).toBe(true);expect(result.data.account).toBe('TEST123A');
+  });
+
+  it('requires an identity decision when quick login leads to registration or binding',async()=>{
+    await page.route('https://member.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:'<iframe src="https://passport.jlc.com/window/login"></iframe>'}));
+    await page.route('https://passport.jlc.com/**',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:`<button>扫码登录</button><button onclick="document.body.innerHTML='<h1>绑定手机号</h1><input><button>注册并登录</button>'">微信快捷登录</button>`}));
+    await page.goto('https://member.jlc.com/');const result=await siteAdapter.run('auth.login',page,context({method:'wechat'}));expect(result.error?.code).toBe('LOGIN_IDENTITY_BINDING_REQUIRED');expect(result.status).toBe('needs_input');expect(result.data.authenticated).toBe(false);expect(effects).toEqual([]);
+  });
+
+  it('accepts the CLI default page one instead of treating it as an unsupported filter',async()=>{
+    await fixture(`${account}<div class="tableListBox">订单编号：Y1234 待付款 ￥12.30</div>`);
+    const result=await siteAdapter.run('orders.list',page,context({page:1}));expect(result.status).toBe('succeeded');expect(result.data.orders).toHaveLength(1);
+  });
+
+});

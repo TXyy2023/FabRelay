@@ -1,0 +1,48 @@
+{
+  "name": "jlc-com-cli",
+  "version": "1.0.0-dev.1",
+  "description": "Agent-ready CLI for jlc.com with persistent Obscura/Chrome CDP workflows",
+  "type": "module",
+  "bin": {
+    "jlc-cli": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "npm run typecheck && npm test && npm run build",
+    "format": "prettier --write src tests",
+    "format:check": "prettier --check src tests"
+  },
+  "keywords": [
+    "jlc",
+    "pcb",
+    "gerber",
+    "obscura",
+    "agent",
+    "cli"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.0",
+    "playwright": "^1.58.2",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
+    "prettier": "^3.9.8",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}
