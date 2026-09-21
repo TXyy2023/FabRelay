@@ -154,7 +154,15 @@ jlc-cli orders progress ORDER --json
 
 ## 接入 AI Agent
 
-配套 Skill 位于 [`skills/jlc-cli`](skills/jlc-cli/SKILL.md)，随 npm 安装包交付，描述命令选择、参数决策、付款确认和异常恢复规则。先安装 CLI，再把 Skill 安装到你的 Agent 实际读取的 skills 根目录。例如，macOS/Linux 上安装到 Codex 的个人 skills 目录：
+配套 Skill 位于 [`skills/jlc-cli`](skills/jlc-cli/SKILL.md)，描述命令选择、参数决策、付款确认和异常恢复规则。可通过 [skills CLI](https://skills.sh/docs/cli) 从本仓库安装，按提示选择 Agent：
+
+```sh
+npx skills add TXyy2023/jlc-cli --skill jlc-cli
+```
+
+**这条命令只安装 Skill，不安装 `jlc-cli`。** Skill 会先检查 CLI 是否可用，缺失时给出本仓库的源码安装步骤。CLI 的安装方法见[快速开始](#快速开始)。例如全局安装 Skill 到 Codex，可加上 `-g -a codex`。
+
+Skill 也随 CLI 安装包交付。已安装 CLI 时，可以直接把随包版本安装到 Agent 实际读取的 skills 根目录。例如，macOS/Linux 上安装到 Codex 的个人 skills 目录：
 
 ```sh
 jlc-cli skill path --json

@@ -1,15 +1,37 @@
 ---
 name: jlc-cli
-description: Use jlc-cli to log in to jlc.com, upload and preview PCB files, configure and quote orders, query orders, perform human-confirmed balance payments, and talk to Jia Xiaozhi. Use for JLC China website business workflows, not schematic editing or local Gerber conversion.
+description: Unofficial JLC China (嘉立创, jlc.com) CLI skill for PCB/Gerber upload, preview, manufacturing parameters, quotes, orders, login and QR login. Use jlc-cli for website business workflows, human-confirmed balance payments, and Jia Xiaozhi; not schematic editing, local Gerber conversion, or overseas JLCPCB.
+license: MIT
+metadata:
+  repository: https://github.com/TXyy2023/jlc-cli
 ---
 
 # jlc-cli
 
-通过业务 CLI 操作嘉立创中国站。常规流程使用命令；只有命令返回待接管时才操作它保留的 CDP 页面。
+通过业务 CLI 操作嘉立创中国站。这是非官方社区项目，没有嘉立创官方背书。常规流程使用命令；只有命令返回待接管时才操作它保留的 CDP 页面。
+
+## 安装检查
+
+执行任何业务命令前，先运行 `jlc-cli --version`，成功后再运行 `jlc-cli --help`。安装本 Skill 不会自动安装 CLI。
+
+如果提示找不到命令（`command not found` / 无法识别），向用户说明 CLI 尚未安装或未加入 PATH，并提供[项目仓库与安装说明](https://github.com/TXyy2023/jlc-cli#快速开始)。当前未发布到 npm，不要安装同名的第三方包。准备 Node.js 22.12 或更高版本、npm、Git 和 Google Chrome 后，可从源码安装：
+
+```sh
+git clone https://github.com/TXyy2023/jlc-cli.git
+cd jlc-cli
+npm ci
+npm run build
+npm pack
+npm install -g ./jlc-com-cli-1.0.0-dev.1.tgz
+jlc-cli --version
+jlc-cli --help
+```
+
+包名对应当前开发版本，版本变化时使用 `npm pack` 实际生成的文件名；已有源码目录时先核实路径，不覆盖用户的目录。安装后重新检查版本与帮助，再继续原任务。若命令存在但启动失败，报告实际错误并检查 Node.js 版本与 PATH，不把启动失败当作未安装而盲目重装。
 
 ## 开始
 
-先运行 `jlc-cli --version`、`jlc-cli --help`、`jlc-cli browser doctor --json`。找不到命令时说明缺少安装，不自行换用同名包或其他站点。`jlc-cli skill path` 返回随该 CLI 交付的 Skill，优先使用同版本说明。
+完成安装检查后，运行 `jlc-cli browser doctor --json` 检查浏览器可用性。`jlc-cli skill path` 返回随该 CLI 交付的 Skill，优先使用同版本说明。
 
 首次使用先向人类呈现 `jlc-cli init --json` 返回的初始化范围，取得明确同意后运行 `jlc-cli init --accept --confirmed-by human`；也可由人类交互式运行 `init`。随后配置浏览器、发起登录并核实 `auth status`；扫码时向人类展示命令返回的当前二维码。登录完成以账号状态核实结果为准，不能只凭页面跳转或扫码动作。完成后可用 `jlc-cli account show --json` 做一次查询。
 
