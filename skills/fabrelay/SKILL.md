@@ -24,7 +24,7 @@ cd FabRelay
 npm ci
 npm run build
 npm pack
-npm install -g ./fabrelay-1.0.0-dev.3.tgz
+npm install -g ./fabrelay-1.0.0-dev.4.tgz
 fabrelay --version
 fabrelay --help
 ```

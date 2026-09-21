@@ -73,7 +73,7 @@ describe("CDP page readiness contracts", () => {
     const initialLoad = deferred();
     let ready = false;
     const fixture = browserFixture("new-target", async (url) => {
-      if (url === "about:blank") {
+      if (url.startsWith("data:text/html,")) {
         initializationStarted.resolve();
         await initialLoad.promise;
         ready = true;
@@ -100,10 +100,13 @@ describe("CDP page readiness contracts", () => {
       expect(first).toBe("initializing");
       expect(returned).toBe(false);
       expect(ready).toBe(false);
-      expect(fixture.goto).toHaveBeenCalledExactlyOnceWith("about:blank", {
-        waitUntil: "load",
-        timeout: config.timeoutMs,
-      });
+      expect(fixture.goto).toHaveBeenCalledExactlyOnceWith(
+        "data:text/html,<title>FabRelay ready</title>",
+        {
+          waitUntil: "load",
+          timeout: config.timeoutMs,
+        },
+      );
 
       initialLoad.resolve();
       const connection = await pending;
@@ -112,6 +115,7 @@ describe("CDP page readiness contracts", () => {
       expect(fixture.newPage).toHaveBeenCalledTimes(1);
       await connection.page.goto("https://business-fixture.invalid/");
       expect(fixture.goto.mock.calls.map(([url]) => url)).toEqual([
+        "data:text/html,<title>FabRelay ready</title>",
         "about:blank",
         "https://business-fixture.invalid/",
       ]);

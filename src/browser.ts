@@ -680,9 +680,14 @@ async function connect(
     if (!page) {
       page = await bounded(context.newPage(), timeout, "PAGE_CREATE_TIMEOUT");
       if (config.engine === "chrome") {
-        // newPage() can resolve before the initial document finishes loading.
-        // Wait for our own inert navigation, not a possibly stale load state,
-        // before callers navigate or install routes on the new target.
+        // Navigating directly to the initial about:blank can reuse its loader
+        // and complete on a stale load event while startup still runs. Commit
+        // a distinct inert document first, then return an actually loaded blank
+        // page. Neither navigation contacts a website or replays a business action.
+        await page.goto("data:text/html,<title>FabRelay ready</title>", {
+          waitUntil: "load",
+          timeout,
+        });
         await page.goto("about:blank", { waitUntil: "load", timeout });
       }
     }

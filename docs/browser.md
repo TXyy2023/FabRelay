@@ -18,6 +18,8 @@ When neither `--home` nor a home environment variable is specified, `~/.fabrelay
 
 ## Session ownership and handoff
 
+For a newly created Chrome target, the CLI first loads a distinct inert `data:` document and then a clean `about:blank`. The distinct document prevents startup load events for the original blank document from satisfying readiness. These steps make no network request; retained targets are never navigated during reconnection.
+
 The runtime launches a detached local broker and a separate browser profile inside the CLI profile directory. The broker holds the upstream CDP WebSocket open between commands. Exiting a CLI command disconnects its client; the broker, browser, exact page target and DOM remain available. `BrowserConnection.targetId` identifies the retained page. If an explicitly requested target has disappeared, connection fails with `BROWSER_TARGET_GONE`; it does not create a replacement page or replay an operation.
 
 The returned HTTP endpoint exposes `/json/version` and a browser WebSocket for ordinary Playwright `connectOverCDP`. Only one downstream CDP client may connect at a time. Another client receives HTTP 409. Release the CLI connection before an Agent acquires the handoff connection, and disconnect the Agent before the CLI resumes. A business task's separate control lease still decides whether writes are authorized. Reconnection itself does not authorize a submission or payment.
