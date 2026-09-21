@@ -213,14 +213,22 @@ async function jsonInput(value: string): Promise<Record<string, unknown>> {
 
 program
   .command("init")
-  .description(
-    "Authorize local sessions and routine reads; every balance payment still requires specific human confirmation.",
-  )
-  .option("--accept", "explicitly accept the displayed scope")
-  .option("--confirmed-by <name>", "human who authorized this profile")
+  .description("初始化本地配置并确认使用范围；每笔余额付款仍须由人类单独确认。")
+  .usage("[选项]")
+  .helpOption("-h, --help", "显示初始化帮助")
+  .configureHelp({
+    styleTitle: (title) =>
+      ({ "Usage:": "用法：", "Options:": "选项：" })[title] ?? title,
+  })
+  .option("--accept", "明确同意显示的使用范围")
+  .option("--confirmed-by <name>", "作出本次授权的人类姓名或标识")
   .action(async (opts) => {
-    const scope =
-      "jlc-cli uses jlc.com, stores browser sessions locally, uploads files you select, and executes explicit business commands. Initialization does not authorize balance payment. Each payment requires confirmation of the account, order and amount. default mode does not choose unconfirmed parameters.";
+    const scope = [
+      "jlc-cli 是非官方社区工具，用于访问嘉立创中国站（jlc.com）。",
+      "工具会在本机保存自有浏览器的登录状态，上传你明确指定的文件，并执行你明确调用的业务操作。",
+      "初始化不等于下单或余额付款授权。创建订单须明确执行提交命令；每笔付款都须由人类确认当前账号、订单、金额及支付方式。",
+      "default（默认）模式不会替你选择尚未确认的生产参数。",
+    ].join("\n");
     let accepted = opts.accept;
     let confirmedBy = opts.confirmedBy;
     if (!accepted && process.stdin.isTTY) {
@@ -230,19 +238,25 @@ program
         output: process.stderr,
       });
       try {
-        accepted =
-          (await rl.question("Type ACCEPT to authorize: ")) === "ACCEPT";
+        const answer = (
+          await rl.question("请输入“同意”以完成初始化授权，其他输入将取消：")
+        ).trim();
+        accepted = answer === "同意" || answer === "ACCEPT";
         if (accepted) confirmedBy = "interactive-human";
       } finally {
         rl.close();
       }
     }
     if (!accepted || !confirmedBy) {
-      output(
-        "init",
-        { scope, command: "jlc-cli init --accept --confirmed-by HUMAN" },
-        "needs_confirmation",
-      );
+      const command = 'jlc-cli init --accept --confirmed-by "你的姓名"';
+      if (program.opts().json)
+        output("init", { scope, command }, "needs_confirmation");
+      else {
+        process.stdout.write(
+          `尚未完成初始化授权。\n${scope}\n\n如已明确同意上述范围，可执行：\n${command}\n`,
+        );
+        process.exitCode = exitCodes.needs_confirmation;
+      }
       return;
     }
     const { state } = local();
@@ -255,11 +269,18 @@ program
       };
       await state.write("config", config);
     });
-    output("init", {
-      authorized: true,
-      scope,
-      stateDirectory: state.directory,
-    });
+    if (program.opts().json)
+      output("init", {
+        authorized: true,
+        scope,
+        stateDirectory: state.directory,
+      });
+    else {
+      process.stdout.write(
+        `初始化完成。\n${scope}\n\n配置目录：${state.directory}\n`,
+      );
+      process.exitCode = exitCodes.succeeded;
+    }
   });
 const browser = program
   .command("browser")

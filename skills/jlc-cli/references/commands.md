@@ -5,7 +5,7 @@
 | 命令 | 用途与前提 |
 | --- | --- |
 | `jlc-cli --version` | 确认 CLI 与所加载 Skill 版本相符 |
-| `jlc-cli init` | 人类交互式阅读并输入 ACCEPT；非交互时先呈现返回说明，再据实际人类同意使用 `--accept --confirmed-by human`；不能代替付款确认 |
+| `jlc-cli init` | 人类交互式阅读中文说明并输入“同意”（兼容原有 ACCEPT）；非交互时先呈现返回说明，再据实际人类同意使用 `--accept --confirmed-by human`；不能代替付款确认 |
 | `jlc-cli browser doctor` | 检查 `data.available`，正常输出不等于浏览器可用；可执行文件存在也不等于业务已可用 |
 | `jlc-cli browser configure --engine obscura --endpoint URL` | 仅支持已有 jlc-cli 中继端点；直接 Obscura CDP 会在断连时丢失页面，因此拒绝直接连接 |
 | `jlc-cli browser configure --engine obscura --executable PATH` | 保存可执行文件路径，由业务命令需要时启动 |

@@ -38,7 +38,7 @@ describe("installed-command contract", () => {
     const result = await run("init");
     expect(result.code).toBe(4);
     expect(result.value.status).toBe("needs_confirmation");
-    expect(result.value.data.scope).toContain("payment");
+    expect(result.value.data.scope).toContain("每笔付款都须由人类确认");
   });
   it("rejects endpoint credentials before writing a config or printing them", async () => {
     const result = await run(
