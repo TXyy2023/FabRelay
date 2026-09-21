@@ -2694,6 +2694,27 @@ async function reconcileUpload(
       pageUrl: URLS.upload,
       account: (await accountOn(page)) ?? undefined,
     };
+    // Interrupted legacy tasks may not have saved their upload metadata yet.
+    // Match exactly one visible record across both names; never resend the file.
+    const candidateUploadNames = [
+      upload.uploadName,
+      `jlc-cli-${context.taskId.slice(0, 12)}-${basename(resolved)}`,
+    ];
+    const matches: string[] = [];
+    for (const name of candidateUploadNames) {
+      const rows = page
+        .locator("tr")
+        .filter({ hasText: name.replace(/\.(zip|rar)$/i, "") });
+      for (const row of await rows.all())
+        if (await row.isVisible()) matches.push(name);
+    }
+    if (matches.length !== 1)
+      return handoff(
+        "UPLOAD_NOT_FOUND",
+        "当前页面未能唯一识别本次上传；保留新旧文件名候选，等待核实，未重新上传。",
+        { candidateUploadNames },
+      );
+    upload.uploadName = matches[0];
     return readUpload(page, {
       ...context,
       previous: { ...context.previous, upload },

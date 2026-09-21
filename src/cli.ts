@@ -27,7 +27,7 @@ import type { Operation, Status } from "./contracts.js";
 const program = new Command();
 program
   .name("fabrelay")
-  .version("1.0.0-dev.2")
+  .version("1.0.0-dev.3")
   .description(
     "FabRelay: unofficial jlc.com business CLI. default mode never selects unconfirmed manufacturing parameters.",
   )

@@ -1,6 +1,6 @@
 {
   "name": "fabrelay",
-  "version": "1.0.0-dev.2",
+  "version": "1.0.0-dev.3",
   "description": "Unofficial JLC China PCB workflows for terminals and AI agents: login, Gerber, quotes and orders",
   "type": "module",
   "bin": {

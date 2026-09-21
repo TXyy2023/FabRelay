@@ -636,22 +636,60 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
     expect(changed.resume).toBeUndefined();
   });
 
-  it("reconstructs the unique prior upload from the original task and file without sending again", async () => {
+  it.each(["fabrelay", "jlc-cli"])(
+    "reconstructs a prior %s upload without sending again",
+    async (prefix) => {
+      const file = join(artifactDir, "original.zip");
+      const bytes = Buffer.from("fixture file bytes");
+      await writeFile(file, bytes);
+      await fixture(
+        `${account}<input type="file" onchange="window.uploaded=true"><table><tr><td>${prefix}-fixture-task-original</td><td><i title="处理成功"></i></td><td><button>立即下单</button></td></tr></table>`,
+      );
+      const result = await siteAdapter.reconcile("pcb.upload", page, {
+        ...context({ file }),
+        effectStarted: false,
+      });
+      expect(result.status).toBe("succeeded");
+      expect(result.data.upload).toMatchObject({
+        taskId: "fixture-task",
+        uploadName: `${prefix}-fixture-task-original.zip`,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      });
+      expect(await page.evaluate(() => Boolean((window as any).uploaded))).toBe(
+        false,
+      );
+      expect(effects).toEqual([]);
+    },
+  );
+
+  it("keeps ambiguous renamed upload candidates unresolved and recovers when one remains", async () => {
     const file = join(artifactDir, "original.zip");
-    const bytes = Buffer.from("fixture file bytes");
-    await writeFile(file, bytes);
+    await writeFile(file, "fixture file bytes");
+    const row = (prefix: string) =>
+      `<tr><td>${prefix}-fixture-task-original</td><td><i title="处理成功"></i><button>立即下单</button></td></tr>`;
     await fixture(
-      `${account}<input type="file" onchange="window.uploaded=true"><table><tr><td>fabrelay-fixture-task-original</td><td><i title="处理成功"></i></td><td><button>立即下单</button></td></tr></table>`,
+      `${account}<input type="file" onchange="window.uploaded=true"><table>${row("fabrelay")}${row("jlc-cli")}</table>`,
     );
-    const result = await siteAdapter.reconcile("pcb.upload", page, {
-      ...context({ file }),
-      effectStarted: false,
-    });
-    expect(result.status).toBe("succeeded");
-    expect(result.data.upload).toMatchObject({
-      taskId: "fixture-task",
-      uploadName: "fabrelay-fixture-task-original.zip",
-      sha256: createHash("sha256").update(bytes).digest("hex"),
+    const ambiguous = await siteAdapter.reconcile(
+      "pcb.upload",
+      page,
+      context({ file }),
+    );
+    expect(ambiguous.status).toBe("handoff");
+    expect(ambiguous.data.upload).toBeUndefined();
+    expect(ambiguous.data.candidateUploadNames).toHaveLength(2);
+    await page
+      .locator("tr")
+      .filter({ hasText: "fabrelay-fixture-task" })
+      .evaluate((row) => row.remove());
+    const recovered = await siteAdapter.reconcile(
+      "pcb.upload",
+      page,
+      context({ file }, ambiguous.data),
+    );
+    expect(recovered.status).toBe("succeeded");
+    expect(recovered.data.upload).toMatchObject({
+      uploadName: "jlc-cli-fixture-task-original.zip",
     });
     expect(await page.evaluate(() => Boolean((window as any).uploaded))).toBe(
       false,
