@@ -502,20 +502,28 @@ describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
     await fixture(
       `${account}<div id="leftcontent"><label>确认订单方式<button name="确认订单方式" class="checked">手动确认订单</button></label></div><aside id="rightcontent">总价 ￥12.30</aside><button onclick="window.checkClicks=(window.checkClicks||0)+1;document.querySelector('#review').hidden=false">检查订单</button><button id="submitBtn" onclick="window.wrongButton=true">提交订单</button><div id="review" class="el-drawer" hidden style="position:fixed;inset:0;background:white;z-index:100"><h2>订单检查</h2><button id="confirm" onclick="window.confirmed=(window.confirmed||0)+1">确认并提交</button></div>`,
     );
+    // Quote verification requires one full second of stable pricing. Give this
+    // multi-step browser fixture headroom for slower hosted Windows runners.
+    const flowContext = (previous: Record<string, unknown>) => ({
+      ...context({}, previous),
+      timeoutMs: 5000,
+    });
     const checked = await siteAdapter.run(
       "pcb.check",
       page,
-      context(
-        {},
-        { upload, decisions: { 确认订单方式: { value: "手动确认订单" } } },
-      ),
+      flowContext({
+        upload,
+        decisions: { 确认订单方式: { value: "手动确认订单" } },
+      }),
     );
-    expect(checked.status).toBe("succeeded");
+    expect(checked, JSON.stringify(checked)).toMatchObject({
+      status: "succeeded",
+    });
     await page
       .locator("#confirm")
       .evaluate((button) => ((button as HTMLButtonElement).disabled = true));
     const paused = await siteAdapter.reconcile("pcb.submit", page, {
-      ...context({}, checked.data),
+      ...flowContext(checked.data),
       effectStarted: false,
     });
     expect(paused.error?.code).toBe("SUBMIT_UNAVAILABLE");
@@ -526,7 +534,7 @@ describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
     const submitted = await siteAdapter.run(
       "pcb.submit",
       page,
-      context({}, checked.data),
+      flowContext(checked.data),
     );
     // The fixture intentionally supplies no backend order receipt.
     expect(submitted.status).toBe("unknown");
@@ -539,7 +547,7 @@ describe("JLC DOM adapter local fixtures (not real-site acceptance)", () => {
         wrong: !!(window as any).wrongButton,
       })),
     ).toEqual({ checked: 1, confirmed: 1, wrong: false });
-  }, 15000);
+  }, 30000);
 
   it("does not resume submit from an identical-looking form with a different file identity", async () => {
     await fixture(
