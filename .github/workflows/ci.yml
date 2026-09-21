@@ -20,6 +20,9 @@ jobs:
         node: [22.12.0]
     env:
       JLC_TEST_BROWSER: chromium
+      # Ubuntu hosted runners restrict Chromium user namespaces. This applies
+      # only to synthetic browser fixtures, never the production default.
+      JLC_CHROME_NO_SANDBOX: ${{ matrix.os == 'ubuntu-latest' && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,6 +32,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run typecheck
+      - run: npm run format:check
       - run: npm test
       - run: npm run build
       - run: node dist/cli.js --help

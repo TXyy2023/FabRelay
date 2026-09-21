@@ -1,6 +1,6 @@
 ---
 name: jlc-cli
-description: Use jlc-cli to log in to jlc.com, upload and preview PCB files, configure and quote orders, query PCB/FPC orders, perform human-confirmed balance payments, and talk to Jia Xiaozhi. Use for JLC China website business workflows, not schematic editing or local Gerber conversion.
+description: Use jlc-cli to log in to jlc.com, upload and preview PCB files, configure and quote orders, query orders, perform human-confirmed balance payments, and talk to Jia Xiaozhi. Use for JLC China website business workflows, not schematic editing or local Gerber conversion.
 ---
 
 # jlc-cli
@@ -12,6 +12,8 @@ description: Use jlc-cli to log in to jlc.com, upload and preview PCB files, con
 先运行 `jlc-cli --version`、`jlc-cli --help`、`jlc-cli browser doctor --json`。找不到命令时说明缺少安装，不自行换用同名包或其他站点。`jlc-cli skill path` 返回随该 CLI 交付的 Skill，优先使用同版本说明。
 
 首次使用先向人类呈现 `jlc-cli init --json` 返回的初始化范围，取得明确同意后运行 `jlc-cli init --accept --confirmed-by human`；也可由人类交互式运行 `init`。随后配置浏览器、发起登录并核实 `auth status`；扫码时向人类展示命令返回的当前二维码。登录完成以账号状态核实结果为准，不能只凭页面跳转或扫码动作。完成后可用 `jlc-cli account show --json` 做一次查询。
+
+当前实站流程显式使用 `jlc-cli browser configure --clear-endpoint --engine chrome`。默认 Obscura 运行时已验证，但本轮真实客户中心 SPA 与登录 iframe 仍有兼容问题；不要把运行时可连接当作业务可用，也不要声称已自动切换浏览器。已有 CLI 自有会话切换引擎前先停止该会话，详见 [浏览器与登录命令](references/commands.md)。
 
 ## 业务索引
 

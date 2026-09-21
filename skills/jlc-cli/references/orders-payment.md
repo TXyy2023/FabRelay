@@ -1,6 +1,6 @@
 # 订单、付款与嘉小智
 
-## PCB/FPC 查询
+## 订单查询
 
 ```text
 jlc-cli orders list --json
@@ -8,7 +8,7 @@ jlc-cli orders show ORDER --json
 jlc-cli orders progress ORDER --json
 ```
 
-用页面实际返回的订单号替换 `ORDER`。区分订单状态、付款状态、生产进度；未显示的金额或生产节点不推测。这里只查询页面可见 PCB/FPC 数据，不包含取消、退款、发票或 FPC 新下单。
+用页面实际返回的订单号替换 `ORDER`。命令使用官网“PCB / FPC订单”共用列表；该入口的路径名称虽含 `pcb`，不能据此认定网站另有专用 FPC 路由。区分订单状态、付款状态、生产进度；未显示的金额或生产节点不推测。当前实站验证了现有 PCB 记录，FPC 记录字段及详情差异尚未验收，不能宣称已查全 FPC 订单。命令不包含取消、退款、发票或 FPC 新下单。
 
 ## 余额付款
 

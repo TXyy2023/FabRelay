@@ -25,7 +25,7 @@ jlc-cli task watch TASK --wait 300 --json
 
 ## 接管与释放
 
-1. 从当前错误结果读取 CDP 地址、页面标识、当前步骤和诊断素材。浏览器不可达时说明接管不可用，保留已有任务资料。
+1. 从当前错误结果读取 `data.cdp.endpoint`、`data.cdp.targetId`、当前步骤和诊断素材。同一端点可有多个页面：PCB 连续链通过 `--draft` 保留对应页面，独立查询可创建新页面；接管必须按该任务的 targetId 定位。浏览器不可达时说明接管不可用，保留已有任务资料。
 2. 调用 `jlc-cli handoff acquire TASK --owner agent --seconds 600` 获取控制租约，保存 `data.lease.id`。租约默认 600 秒，可设 1–3600 秒。仅连接所返回的同一会话与页面，不另开一个登录会话来冒充原现场。
 3. 在原有授权内处理阻塞，如完成人类挑战、核对页面错误。租约期间 CLI 不并行写该任务页面。不得绕过生产参数选择或付款确认。
 4. 操作完成后调用 `jlc-cli handoff release TASK --lease LEASE_ID`。观察器在租约释放或到期后再次核实条件，自动推进可以安全继续的步骤。
