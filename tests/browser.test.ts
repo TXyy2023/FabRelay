@@ -326,7 +326,7 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
         { engine: "chrome", executable: chrome },
         dir,
       );
-      await first.page.goto(url);
+      await first.page.goto(url, { waitUntil: "domcontentloaded" });
       await first.page.evaluate(() => {
         localStorage.setItem("test-session", "PRIVATE_LOCAL_VALUE");
         document.cookie = "test-cookie=PRIVATE_COOKIE_VALUE; Path=/";
@@ -433,6 +433,7 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
       localStorage.setItem("external-login", "EXTERNAL_PRIVATE_LOCAL_VALUE");
       document.cookie = "external-login=EXTERNAL_PRIVATE_COOKIE_VALUE; Path=/";
     });
+    const originalPageCount = owner.page.context().pages().length;
     await owner.disconnect();
     const visitor = await browserProvider.connect(
       { engine: "chrome", endpoint },
@@ -442,6 +443,15 @@ describe.skipIf(!existsSync(chrome))("real CDP browser lifecycle", () => {
     await visitor.save();
     expect(existsSync(join(externalDir, "browser-storage.json"))).toBe(false);
     await visitor.disconnect();
+    const untargeted = await browserProvider.connect(
+      { engine: "chrome", endpoint },
+      externalDir,
+    );
+    expect(untargeted.page.context().pages()).toHaveLength(
+      originalPageCount + 1,
+    );
+    expect(untargeted.targetId).not.toBe(target);
+    await untargeted.disconnect();
     expect(await stopOwnedBrowser(externalDir)).toBe(false);
     const ownerAgain = await browserProvider.connect(
       { engine: "chrome", executable: chrome },

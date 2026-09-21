@@ -660,9 +660,12 @@ async function connect(
         "BROWSER_TARGET_GONE",
         "The retained task page no longer exists. Reconcile the business state before creating or repeating operations.",
       );
-    page ??=
-      context.pages().find((p) => p.url() === "about:blank") ??
-      (await bounded(context.newPage(), timeout, "PAGE_CREATE_TIMEOUT"));
+    // A Chrome startup tab can still have an initial navigation in flight.
+    // Create an initialized page instead of borrowing that tab (or an external
+    // user's blank tab). Explicit and recorded task targets remain unchanged.
+    if (!page && config.engine === "obscura")
+      page = context.pages().find((p) => p.url() === "about:blank");
+    page ??= await bounded(context.newPage(), timeout, "PAGE_CREATE_TIMEOUT");
     const id = await bounded(pageId(page), timeout, "TARGET_LOOKUP_TIMEOUT");
     if (owned)
       await privateJson(join(directory, runtimeName), {
