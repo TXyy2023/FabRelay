@@ -1,6 +1,6 @@
 ---
 name: jlc-cli
-description: jlc-cli is an unofficial JLC China (嘉立创, jlc.com) CLI skill for PCB/Gerber upload, preview, manufacturing parameters, quotes, orders, login and QR login. Use jlc-cli for website business workflows, human-confirmed balance payments, and Jia Xiaozhi; not schematic editing, local Gerber conversion, or overseas JLCPCB.
+description: jlc-cli is an unofficial, community-maintained JLC China (嘉立创, jlc.com) CLI skill, not affiliated with or endorsed by JLC. Use it for PCB/Gerber upload, preview, manufacturing parameters, quotes, orders, login and QR login. Use jlc-cli for website business workflows, human-confirmed balance payments, and Jia Xiaozhi; not schematic editing, local Gerber conversion, or overseas JLCPCB.
 license: MIT
 metadata:
   repository: https://github.com/TXyy2023/jlc-cli
@@ -8,7 +8,9 @@ metadata:
 
 # jlc-cli
 
-通过业务 CLI 操作嘉立创中国站。这是非官方社区项目，没有嘉立创官方背书。常规流程使用命令；只有命令返回待接管时才操作它保留的 CDP 页面。
+**非官方声明：jlc-cli 是社区维护的独立 Skill，与嘉立创官方无隶属关系，未经官方授权或背书，不是官方 Skill、插件或开放 API。**
+
+通过业务 CLI 操作嘉立创中国站。常规流程使用命令；只有命令返回待接管时才操作它保留的 CDP 页面。
 
 ## 安装检查
 
@@ -24,7 +26,7 @@ cd jlc-cli
 npm ci
 npm run build
 npm pack
-npm install -g ./jlc-cli-1.0.0-dev.4.tgz
+npm install -g ./jlc-cli-1.0.0-dev.5.tgz
 jlc-cli --version
 jlc-cli --help
 ```

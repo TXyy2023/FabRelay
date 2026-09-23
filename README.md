@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/TXyy2023/jlc-cli/actions/workflows/ci.yml"><img src="https://github.com/TXyy2023/jlc-cli/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-  <a href="package.json"><img src="https://img.shields.io/badge/version-1.0.0--dev.4-64748b" alt="开发版本 1.0.0-dev.4"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/version-1.0.0--dev.5-64748b" alt="开发版本 1.0.0-dev.5"></a>
   <a href="package-lock.json"><img src="https://img.shields.io/badge/TypeScript-5.9.3-3178c6?logo=typescript&amp;logoColor=white" alt="TypeScript 5.9.3"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/Node.js-%3E%3D22.12-5fa04e?logo=nodedotjs&amp;logoColor=white" alt="Node.js 22.12 或更高版本"></a>
   <a href="package-lock.json"><img src="https://img.shields.io/badge/Playwright-1.62.1-2e7d32" alt="Playwright 1.62.1"></a>
@@ -24,7 +24,7 @@
 
 **这是一个非官方、社区维护的开源参考项目，不是嘉立创官方插件，也没有嘉立创官方背书。** 项目面向 [嘉立创中国站 jlc.com](https://www.jlc.com/)，通过浏览器操作网站，不代表官方开放 API；海外 JLCPCB 的账号、接口和业务规则不属于本项目范围。
 
-当前版本为 **`1.0.0-dev.4`**，尚未发布到 npm，请从源码构建。建议先阅读下面的能力范围，再用自己的测试文件完成一次“上传 → 参数 → 报价”，熟悉结果后接入日常工作流。
+当前版本为 **`1.0.0-dev.5`**，尚未发布到 npm，请从源码构建。建议先阅读下面的能力范围，再用自己的测试文件完成一次“上传 → 参数 → 报价”，熟悉结果后接入日常工作流。
 
 ## 视频演示
 
@@ -92,7 +92,7 @@ cd jlc-cli
 npm ci
 npm run build
 npm pack
-npm install -g ./jlc-cli-1.0.0-dev.4.tgz
+npm install -g ./jlc-cli-1.0.0-dev.5.tgz
 jlc-cli --version
 jlc-cli --help
 ```

@@ -27,7 +27,7 @@ import type { Operation, Status } from "./contracts.js";
 const program = new Command();
 program
   .name("jlc-cli")
-  .version("1.0.0-dev.4")
+  .version("1.0.0-dev.5")
   .description(
     "jlc-cli: unofficial jlc.com business CLI. default mode never selects unconfirmed manufacturing parameters.",
   )
