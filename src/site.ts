@@ -487,7 +487,7 @@ async function loginStatus(page: Page): Promise<BusinessResult> {
     "LOGIN_REQUIRED",
     "尚未读取到有效的登录账号；请在保留的浏览器中完成登录。",
     { authenticated: false, loggedIn: false, pageUrl: cleanUrl(page.url()) },
-    ["fabrelay auth login"],
+    ["jlc-cli auth login"],
   );
 }
 /** WeChat embeds sometimes expose an empty URL; only trust descendants of the official passport frame. */
@@ -934,7 +934,7 @@ async function uploadFile(
   const upload: Upload = {
     taskId: context.taskId,
     fileName: basename(file),
-    uploadName: `fabrelay-${context.taskId.slice(0, 12)}-${basename(file)}`,
+    uploadName: `jlc-cli-${context.taskId.slice(0, 12)}-${basename(file)}`,
     sha256: createHash("sha256").update(bytes).digest("hex"),
     size: bytes.length,
     uploadedAt: new Date().toISOString(),
@@ -2687,7 +2687,7 @@ async function reconcileUpload(
     const upload: Upload = {
       taskId: context.taskId,
       fileName: basename(resolved),
-      uploadName: `fabrelay-${context.taskId.slice(0, 12)}-${basename(resolved)}`,
+      uploadName: `jlc-cli-${context.taskId.slice(0, 12)}-${basename(resolved)}`,
       sha256: createHash("sha256").update(bytes).digest("hex"),
       size: bytes.length,
       uploadedAt: "unknown",
@@ -2698,7 +2698,7 @@ async function reconcileUpload(
     // Match exactly one visible record across both names; never resend the file.
     const candidateUploadNames = [
       upload.uploadName,
-      `jlc-cli-${context.taskId.slice(0, 12)}-${basename(resolved)}`,
+      `fabrelay-${context.taskId.slice(0, 12)}-${basename(resolved)}`,
     ];
     const matches: string[] = [];
     for (const name of candidateUploadNames) {

@@ -1,11 +1,13 @@
 <p align="center">
-  <img src="docs/media/branding/fabrelay-banner.svg" alt="FabRelay：终端提示符与 PCB 走线组成的社区项目 Logo" width="960">
+  <img src="docs/media/branding/jlc-cli-banner.png" alt="jlc-cli：终端提示符与 PCB 走线组成的社区项目 Logo" width="960">
 </p>
 
-<h1 align="center">FabRelay</h1>
+<h1 align="center">jlc-cli</h1>
+
+<p align="center"><strong>非官方社区项目 · Unofficial community project</strong><br>与嘉立创官方无隶属关系，未经官方背书。</p>
 
 <p align="center">
-  <a href="https://github.com/TXyy2023/FabRelay/actions/workflows/ci.yml"><img src="https://github.com/TXyy2023/FabRelay/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/TXyy2023/jlc-cli/actions/workflows/ci.yml"><img src="https://github.com/TXyy2023/jlc-cli/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/version-1.0.0--dev.4-64748b" alt="开发版本 1.0.0-dev.4"></a>
   <a href="package-lock.json"><img src="https://img.shields.io/badge/TypeScript-5.9.3-3178c6?logo=typescript&amp;logoColor=white" alt="TypeScript 5.9.3"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/Node.js-%3E%3D22.12-5fa04e?logo=nodedotjs&amp;logoColor=white" alt="Node.js 22.12 或更高版本"></a>
@@ -15,7 +17,7 @@
 
 <p align="center">
   <strong>让终端与 AI Agent 操作真实的 PCB 业务流程。</strong><br>
-  <a href="#视频演示">视频演示</a> · <a href="#快速开始">快速开始</a> · <a href="skills/fabrelay/SKILL.md">Agent Skill</a> · <a href="docs/acceptance.md">验收范围</a> · <a href="docs/design.md">设计说明</a>
+  <a href="#视频演示">视频演示</a> · <a href="#快速开始">快速开始</a> · <a href="skills/jlc-cli/SKILL.md">Agent Skill</a> · <a href="docs/acceptance.md">验收范围</a> · <a href="docs/design.md">设计说明</a>
 </p>
 
 把嘉立创中国站的常用业务流程接入终端与 AI Agent：登录、上传 PCB 文件、读取和设置工艺参数、预览、报价，以及查询已有订单。
@@ -26,7 +28,7 @@
 
 ## 视频演示
 
-以下录像录制于改名前，画面中的 `jlc-cli` 是 FabRelay 的旧命令名；历史执行结果和素材保持原样。
+以下录像使用 `jlc-cli` 命令；历史执行结果和素材保持原样。
 
 使用 Codex 的 **`gpt-5.6-luna`**，搭配本项目 CLI 与 Skill，演示“自然语言指令 → AI 实际执行（等待片段 4× 加速）→ 通过 CDP 连接对应网页截图”。点击封面打开视频；也可下载仓库后打开 [四格播放器](docs/media/demos/index.html)。画面录制自实时显示的 Codex CLI 事件流，素材来源与验证边界见 [录制说明](docs/media/demos/SOURCE.md)，进度见 [制作清单](docs/demo-videos.md)。
 
@@ -43,7 +45,7 @@
 
 ## 可以用它做什么
 
-对终端用户，`fabrelay` 把分散在网页里的操作整理成可组合的命令。对 AI Agent，它提供结构化结果、持久化任务和配套 Skill，让 Agent 能围绕用户的文件与约束推进流程，并在缺少决定、需要登录或遇到页面异常时明确停在哪一步。
+对终端用户，`jlc-cli` 把分散在网页里的操作整理成可组合的命令。对 AI Agent，它提供结构化结果、持久化任务和配套 Skill，让 Agent 能围绕用户的文件与约束推进流程，并在缺少决定、需要登录或遇到页面异常时明确停在哪一步。
 
 例如，你可以让 Agent 上传一份指定的 Gerber 压缩包，列出当前可选工艺，按你确认的参数获取预览和报价；也可以直接在终端查询已有 PCB 订单的详情与生产进度。CLI 本身不内置大模型，参数建议和自然语言沟通由你使用的 Agent 完成。
 
@@ -64,7 +66,7 @@
 
 ```mermaid
 flowchart LR
-    A[终端用户 / AI Agent] --> B[FabRelay 业务命令]
+    A[终端用户 / AI Agent] --> B[jlc-cli 业务命令]
     B <--> C[本地配置与任务记录]
     B --> D[Playwright CDP / 会话中继]
     D <--> E[Chrome / Obscura]
@@ -85,51 +87,51 @@ flowchart LR
 准备 **Node.js 22.12 或更高版本**、npm、Git，以及已安装的 Google Chrome。在终端执行：
 
 ```sh
-git clone https://github.com/TXyy2023/FabRelay.git
-cd FabRelay
+git clone https://github.com/TXyy2023/jlc-cli.git
+cd jlc-cli
 npm ci
 npm run build
 npm pack
-npm install -g ./fabrelay-1.0.0-dev.4.tgz
-fabrelay --version
-fabrelay --help
+npm install -g ./jlc-cli-1.0.0-dev.4.tgz
+jlc-cli --version
+jlc-cli --help
 ```
 
-`npm pack` 会执行类型检查、测试和构建，并将 CLI、文档、Skill 一起打包；上面的包名对应当前开发版本。暂不全局安装时，构建后可运行 `node dist/cli.js --help`，后续示例中的 `fabrelay` 同样可替换为 `node dist/cli.js`。
+`npm pack` 会执行类型检查、测试和构建，并将 CLI、文档、Skill 一起打包；上面的包名对应当前开发版本。暂不全局安装时，构建后可运行 `node dist/cli.js --help`，后续示例中的 `jlc-cli` 同样可替换为 `node dist/cli.js`。
 
 ### 2. 初始化并选择 Chrome
 
 ```sh
-fabrelay init
-fabrelay browser configure --clear-endpoint --engine chrome
-fabrelay browser doctor --json
+jlc-cli init
+jlc-cli browser configure --clear-endpoint --engine chrome
+jlc-cli browser doctor --json
 ```
 
-`init` 会展示中文说明，请阅读后按提示输入“同意”；也兼容 `ACCEPT`。初始化记录本地会话与常规操作的授权范围，不代替具体建单需求或每笔付款确认。Agent 的非交互初始化方式见 [命令与登录说明](skills/fabrelay/references/commands.md)。
+`init` 会展示中文说明，请阅读后按提示输入“同意”；也兼容 `ACCEPT`。初始化记录本地会话与常规操作的授权范围，不代替具体建单需求或每笔付款确认。Agent 的非交互初始化方式见 [命令与登录说明](skills/jlc-cli/references/commands.md)。
 
-检查 `browser doctor` 结果中的 `data.available`。若未发现 Chrome，用 `fabrelay browser configure --engine chrome --executable "Chrome可执行文件路径"` 指定实际路径。已有 CLI 自有浏览器会话需要切换引擎时，先运行 `fabrelay browser stop`；`--clear-endpoint` 用于清除先前配置的外部端点。
+检查 `browser doctor` 结果中的 `data.available`。若未发现 Chrome，用 `jlc-cli browser configure --engine chrome --executable "Chrome可执行文件路径"` 指定实际路径。已有 CLI 自有浏览器会话需要切换引擎时，先运行 `jlc-cli browser stop`；`--clear-endpoint` 用于清除先前配置的外部端点。
 
 ### 3. 登录并核实账号
 
 ```sh
-fabrelay auth login --method qr --wait 300 --events
-fabrelay auth status --json
-fabrelay account show --json
+jlc-cli auth login --method qr --wait 300 --events
+jlc-cli auth status --json
+jlc-cli account show --json
 ```
 
 登录命令会交付当前任务的二维码素材；终端用户可打开返回的图片，Agent 应及时展示给人类扫码。`--events` 输出逐行 JSON，便于先取得二维码，再等待登录结果。二维码刷新后使用新的素材，登录是否成功以 `auth status` 对当前身份的核实为准。
 
 命令还提供 `wechat`、`manual`、`password`、`sms` 登录方式，以网站当前页面开放的方式为准。短信验证码目前由人类在网站获取，CLI 只接收已有验证码；密码、短信和完整扫码路径的验证范围见验收记录。遇到滑块等验证时，需要人类处理保留的页面；Chrome 默认无头运行，显示专用窗口的方法见 [浏览器说明](docs/browser.md)。
 
-新安装默认使用 `~/.fabrelay`；可用 `FABRELAY_HOME` 或 `--home DIR` 指定数据目录。使用 `--profile NAME` 可隔离账号配置，同一工作流应始终使用同一 profile。会话有效时后续命令会复用登录状态；会话文件和诊断素材可能含账号资料，请保留在自己的数据目录，不提交到仓库。
+新安装默认使用 `~/.jlc-cli`；可用 `JLC_HOME` 或 `--home DIR` 指定数据目录。使用 `--profile NAME` 可隔离账号配置，同一工作流应始终使用同一 profile。会话有效时后续命令会复用登录状态；会话文件和诊断素材可能含账号资料，请保留在自己的数据目录，不提交到仓库。
 
-### 从旧名称升级
+### 从 FabRelay 恢复名称
 
-项目已从 `jlc-cli` 改名为 **FabRelay**，包名、命令与 Skill 名统一为 `fabrelay`。已有源码目录运行 `git remote set-url origin https://github.com/TXyy2023/FabRelay.git`，拉取最新代码后按上方步骤安装；目录本身可以保持原名。安装成功后将脚本中的旧命令替换为 `fabrelay`，并重新安装 `fabrelay` Skill。确认旧 Skill 没有个人修改后移出 Agent 的 skills 目录，以免加载过期说明。
+项目名称、CLI 命令、源码包名与 Skill 名现统一为 **`jlc-cli`**。项目仍是非官方社区工具，与嘉立创官方无隶属关系，也未经官方背书。曾安装 FabRelay 的用户可从本仓库重新构建安装，并将脚本命令改为 `jlc-cli`；Skill 使用 `skills/jlc-cli`。旧 Skill 如有个人修改，请先保留备份。
 
-数据目录选择顺序为 `--home` → `FABRELAY_HOME` → 兼容的 `JLC_HOME` → 默认目录。没有 `~/.fabrelay` 而存在 `~/.jlc-cli` 时，自动沿用旧目录中的登录状态、任务和确认记录，不复制或搬动正在运行的浏览器资料；两者都存在时使用 `~/.fabrelay`，可通过 `--home` 显式指定旧目录。旧的浏览器环境变量和缓存路径仍可使用，详见[兼容说明](docs/browser.md#rename-compatibility)。
+数据目录选择顺序为 `--home` → `JLC_HOME` → 兼容的 `FABRELAY_HOME` → 默认目录。新安装默认使用 `~/.jlc-cli`；如果该目录不存在而 `~/.fabrelay` 存在，则原地沿用后者。两者都存在时使用 `~/.jlc-cli`，也可通过 `--home` 明确选择已有目录。不会自动搬动登录资料、任务或运行中的浏览器数据。浏览器环境变量、缓存、回调与上传文件名仍兼容 FabRelay，详见[兼容说明](docs/browser.md#rename-compatibility)。
 
-新回调使用 `x-fabrelay-event-id` 与 `x-fabrelay-signature`，同时发送同值的旧头，便于现有接收端继续去重和验签。历史 Release、视频及执行记录保留当时的名称；当前使用方式以本页为准。
+回调同时发送同值的 `x-jlc-*` 和 `x-fabrelay-*` 头，供已有接收端继续去重和验签。历史 Release 和执行记录保留当时的名称；当前安装方式以本页为准。
 
 ## 跑通一次 PCB 报价
 
@@ -138,12 +140,12 @@ fabrelay account show --json
 下面按顺序执行。`UPLOAD_TASK` 等是占位符，**每一步都要替换为上一步成功结果中的实际 `taskId`**，不要直接复制整段运行。
 
 ```sh
-fabrelay pcb upload "board.zip" --json
-fabrelay pcb options --draft UPLOAD_TASK --json
-fabrelay pcb set --draft OPTIONS_TASK --params @values.json --mode default --json
-fabrelay pcb preview --draft SET_TASK --json
-fabrelay pcb quote --draft PREVIEW_TASK --json
-fabrelay pcb check --draft QUOTE_TASK --json
+jlc-cli pcb upload "board.zip" --json
+jlc-cli pcb options --draft UPLOAD_TASK --json
+jlc-cli pcb set --draft OPTIONS_TASK --params @values.json --mode default --json
+jlc-cli pcb preview --draft SET_TASK --json
+jlc-cli pcb quote --draft PREVIEW_TASK --json
+jlc-cli pcb check --draft QUOTE_TASK --json
 ```
 
 运行 `pcb options` 后，按它返回的字段名、候选值和约束创建 `values.json`。文件内容是“字段名 → 明确取值”的 JSON 对象，不需要 `params` 外层包装。候选项可能随材质、层数或其他工艺变化，改变相关选项后需要重新读取，不能把另一块板的参数表直接套用。
@@ -155,46 +157,46 @@ fabrelay pcb check --draft QUOTE_TASK --json
 已有订单可以这样查询，用实际订单号替换 `ORDER`：
 
 ```sh
-fabrelay orders list --json
-fabrelay orders show ORDER --json
-fabrelay orders progress ORDER --json
+jlc-cli orders list --json
+jlc-cli orders show ORDER --json
+jlc-cli orders progress ORDER --json
 ```
 
-若要继续研究建单与付款接口，分别查看 [PCB 工作流](skills/fabrelay/references/pcb.md) 和 [订单与付款](skills/fabrelay/references/orders-payment.md)。建单使用独立的 `pcb submit` 命令；余额付款分为准备摘要、人类确认、执行和核实，每次确认绑定账号、订单、金额与支付方式。这些接口仍待完整实站验收，不能把命令存在视为已经验证可用。
+若要继续研究建单与付款接口，分别查看 [PCB 工作流](skills/jlc-cli/references/pcb.md) 和 [订单与付款](skills/jlc-cli/references/orders-payment.md)。建单使用独立的 `pcb submit` 命令；余额付款分为准备摘要、人类确认、执行和核实，每次确认绑定账号、订单、金额与支付方式。这些接口仍待完整实站验收，不能把命令存在视为已经验证可用。
 
 ## 接入 AI Agent
 
-配套 Skill 位于 [`skills/fabrelay`](skills/fabrelay/SKILL.md)，描述命令选择、参数决策、付款确认和异常恢复规则。可通过 [skills CLI](https://skills.sh/docs/cli) 从本仓库安装，按提示选择 Agent：
+配套 Skill 位于 [`skills/jlc-cli`](skills/jlc-cli/SKILL.md)，描述命令选择、参数决策、付款确认和异常恢复规则。可通过 [skills CLI](https://skills.sh/docs/cli) 从本仓库安装，按提示选择 Agent：
 
 ```sh
-npx skills add TXyy2023/FabRelay --skill fabrelay
+npx skills add TXyy2023/jlc-cli --skill jlc-cli
 ```
 
-**这条命令只安装 Skill，不安装 `fabrelay`。** Skill 会先检查 CLI 是否可用，缺失时给出本仓库的源码安装步骤。CLI 的安装方法见[快速开始](#快速开始)。例如全局安装 Skill 到 Codex，可加上 `-g -a codex`。
+**这条命令只安装 Skill，不安装 `jlc-cli`。** Skill 会先检查 CLI 是否可用，缺失时给出本仓库的源码安装步骤。CLI 的安装方法见[快速开始](#快速开始)。例如全局安装 Skill 到 Codex，可加上 `-g -a codex`。
 
 Skill 也随 CLI 安装包交付。已安装 CLI 时，可以直接把随包版本安装到 Agent 实际读取的 skills 根目录。例如，macOS/Linux 上安装到 Codex 的个人 skills 目录：
 
 ```sh
-fabrelay skill path --json
-fabrelay skill install --to "$HOME/.codex/skills" --json
+jlc-cli skill path --json
+jlc-cli skill install --to "$HOME/.codex/skills" --json
 ```
 
-`--to` 指定的是 **skills 根目录**，命令会在其下创建 `fabrelay` 子目录，已有同名目录时拒绝覆盖。其他 Agent 或 Windows 环境请换成对应的实际目录，并按宿主的方式重新加载 Skill。优先使用 `skill path` 指向的随包版本，避免 Skill 与 CLI 版本不一致。
+`--to` 指定的是 **skills 根目录**，命令会在其下创建 `jlc-cli` 子目录，已有同名目录时拒绝覆盖。其他 Agent 或 Windows 环境请换成对应的实际目录，并按宿主的方式重新加载 Skill。优先使用 `skill path` 指向的随包版本，避免 Skill 与 CLI 版本不一致。
 
 接入后，可以从一条范围清楚的请求开始：
 
-> 使用 fabrelay，把我指定的 board.zip 上传到嘉立创中国站。先展示解析结果和待确认的工艺参数；按我确认的参数获取预览与报价，最后给我摘要。
+> 使用 jlc-cli，把我指定的 board.zip 上传到嘉立创中国站。先展示解析结果和待确认的工艺参数；按我确认的参数获取预览与报价，最后给我摘要。
 
 Agent 应检查 JSON 中的 `status`、`data`、`error` 和 `next`，而不仅是进程是否退出。`needs_input` 表示缺少选择，`needs_login` 表示需要登录，`unknown` 表示结果仍需核实。支付或提交超时后应查询原任务与订单，不能直接重复操作。
 
 需要观察已有任务时使用：
 
 ```sh
-fabrelay task show TASK --json
-fabrelay task watch TASK --wait 300 --json
+jlc-cli task show TASK --json
+jlc-cli task watch TASK --wait 300 --json
 ```
 
-命令返回 `handoff` 时，按任务中的 CDP 地址与 `targetId` 定位原页面，取得控制租约后接管，完成后释放。观察器会核实可继续的步骤；关闭观察进程后没有常驻业务观察器。接管命令、退出码和恢复细节见 [结果与恢复](skills/fabrelay/references/results-recovery.md)。
+命令返回 `handoff` 时，按任务中的 CDP 地址与 `targetId` 定位原页面，取得控制租约后接管，完成后释放。观察器会核实可继续的步骤；关闭观察进程后没有常驻业务观察器。接管命令、退出码和恢复细节见 [结果与恢复](skills/jlc-cli/references/results-recovery.md)。
 
 ## 开发、反馈与共建
 
@@ -217,8 +219,8 @@ npm pack --dry-run
 
 参数共建可以从一个小问题开始：某个选项在什么条件下出现、切换后会影响哪些字段、网页中的名称应该怎样解释。讨论时尽量附上已确认的适用条件与脱敏证据，并区分网站限制、个人经验和建议。这样整理出的资料，既能帮助用户理解选择，也能用于完善适配逻辑与回归测试。
 
-可以通过 [Issues](https://github.com/TXyy2023/FabRelay/issues) 讨论场景、报告适配问题，或通过 [Pull Requests](https://github.com/TXyy2023/FabRelay/pulls) 提交实现、参数资料和测试。一条核实过的参数依赖或一份清楚的复现说明，同样有助于项目推进。
+可以通过 [Issues](https://github.com/TXyy2023/jlc-cli/issues) 讨论场景、报告适配问题，或通过 [Pull Requests](https://github.com/TXyy2023/jlc-cli/pulls) 提交实现、参数资料和测试。一条核实过的参数依赖或一份清楚的复现说明，同样有助于项目推进。
 
-进一步阅读：[设计说明](docs/design.md) · [浏览器运行与接管](docs/browser.md) · [站点证据](docs/site-evidence.md) · [验收记录](docs/acceptance.md) · [Agent Skill](skills/fabrelay/SKILL.md)。历史研究材料保留在 `docs/archive`，当前能力以实现和对应验证记录为准。
+进一步阅读：[设计说明](docs/design.md) · [浏览器运行与接管](docs/browser.md) · [站点证据](docs/site-evidence.md) · [验收记录](docs/acceptance.md) · [Agent Skill](skills/jlc-cli/SKILL.md)。历史研究材料保留在 `docs/archive`，当前能力以实现和对应验证记录为准。
 
 项目采用 [MIT 许可证](LICENSE)。

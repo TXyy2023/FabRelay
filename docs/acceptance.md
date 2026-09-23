@@ -73,7 +73,7 @@
 
 ## 平台验收
 
-Node.js 22.12 是 CLI 的最低运行版本。[三平台 CI 基线](https://github.com/TXyy2023/FabRelay/actions/runs/35602632946) 对应提交 `6a57534`，运行类型检查、格式检查、真实 Chromium 夹具测试、构建、CLI 帮助和打包检查。后续提交的同一检查可在 [CI 记录](https://github.com/TXyy2023/FabRelay/actions/workflows/ci.yml) 按提交核对。不能据此推定上游 Obscura 对所有系统和 CPU 架构可用。
+Node.js 22.12 是 CLI 的最低运行版本。[三平台 CI 基线](https://github.com/TXyy2023/jlc-cli/actions/runs/35602632946) 对应提交 `6a57534`，运行类型检查、格式检查、真实 Chromium 夹具测试、构建、CLI 帮助和打包检查。后续提交的同一检查可在 [CI 记录](https://github.com/TXyy2023/jlc-cli/actions/workflows/ci.yml) 按提交核对。不能据此推定上游 Obscura 对所有系统和 CPU 架构可用。
 
 | 环境 | 安装、帮助、类型检查、测试、构建、打包 | Obscura 启动与 CDP | 真实登录及业务流程 |
 | --- | --- | --- | --- |

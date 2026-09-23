@@ -101,7 +101,7 @@ describe("CDP page readiness contracts", () => {
       expect(returned).toBe(false);
       expect(ready).toBe(false);
       expect(fixture.goto).toHaveBeenCalledExactlyOnceWith(
-        "data:text/html,<title>FabRelay ready</title>",
+        "data:text/html,<title>jlc-cli ready</title>",
         {
           waitUntil: "load",
           timeout: config.timeoutMs,
@@ -115,7 +115,7 @@ describe("CDP page readiness contracts", () => {
       expect(fixture.newPage).toHaveBeenCalledTimes(1);
       await connection.page.goto("https://business-fixture.invalid/");
       expect(fixture.goto.mock.calls.map(([url]) => url)).toEqual([
-        "data:text/html,<title>FabRelay ready</title>",
+        "data:text/html,<title>jlc-cli ready</title>",
         "about:blank",
         "https://business-fixture.invalid/",
       ]);

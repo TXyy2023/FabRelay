@@ -1,10 +1,10 @@
 {
-  "name": "fabrelay",
+  "name": "jlc-cli",
   "version": "1.0.0-dev.4",
   "description": "Unofficial JLC China PCB workflows for terminals and AI agents: login, Gerber, quotes and orders",
   "type": "module",
   "bin": {
-    "fabrelay": "dist/cli.js"
+    "jlc-cli": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -26,7 +26,7 @@
     "format:check": "prettier --check src tests"
   },
   "keywords": [
-    "fabrelay",
+    "jlc-cli",
     "jlc",
     "pcb",
     "gerber",
@@ -50,10 +50,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TXyy2023/FabRelay.git"
+    "url": "git+https://github.com/TXyy2023/jlc-cli.git"
   },
-  "homepage": "https://github.com/TXyy2023/FabRelay#readme",
+  "homepage": "https://github.com/TXyy2023/jlc-cli#readme",
   "bugs": {
-    "url": "https://github.com/TXyy2023/FabRelay/issues"
+    "url": "https://github.com/TXyy2023/jlc-cli/issues"
   }
 }

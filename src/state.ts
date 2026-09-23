@@ -108,10 +108,10 @@ export function defaultStateHome(
   env: NodeJS.ProcessEnv = process.env,
   userHome = homedir(),
 ): string {
-  if (env.FABRELAY_HOME) return env.FABRELAY_HOME;
   if (env.JLC_HOME) return env.JLC_HOME;
-  const current = join(userHome, ".fabrelay");
-  const legacy = join(userHome, ".jlc-cli");
+  if (env.FABRELAY_HOME) return env.FABRELAY_HOME;
+  const current = join(userHome, ".jlc-cli");
+  const legacy = join(userHome, ".fabrelay");
   return !existsSync(current) && existsSync(legacy) ? legacy : current;
 }
 export class State {
@@ -190,7 +190,7 @@ export class State {
     if (!c.consent)
       throw new CliError(
         "CONSENT_REQUIRED",
-        "Run fabrelay init and explicitly accept the displayed authorization.",
+        "Run jlc-cli init and explicitly accept the displayed authorization.",
       );
     return c;
   }

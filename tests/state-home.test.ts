@@ -7,19 +7,19 @@ import { defaultStateHome, State } from "../src/state.js";
 
 let home: string;
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "fabrelay-home-"));
+  home = await mkdtemp(join(tmpdir(), "jlc-cli-home-"));
 });
 afterEach(async () => {
   await rm(home, { recursive: true, force: true });
 });
 
-describe("state continuity after the FabRelay rename", () => {
+describe("state continuity after the jlc-cli rename", () => {
   it("uses the new default for a fresh installation", () => {
-    expect(defaultStateHome({}, home)).toBe(join(home, ".fabrelay"));
+    expect(defaultStateHome({}, home)).toBe(join(home, ".jlc-cli"));
   });
 
   it("reuses legacy tasks and consent in place without creating another profile", async () => {
-    const legacy = join(home, ".jlc-cli");
+    const legacy = join(home, ".fabrelay");
     const profile = join(legacy, "profiles", "default");
     await mkdir(join(profile, "tasks"), { recursive: true });
     const config = {
@@ -40,23 +40,23 @@ describe("state continuity after the FabRelay rename", () => {
     expect(state.directory).toBe(profile);
     expect(await state.requireConsent()).toEqual(config);
     expect((await state.task("retained")).targetId).toBe("original-target");
-    expect(existsSync(join(home, ".fabrelay"))).toBe(false);
+    expect(existsSync(join(home, ".jlc-cli"))).toBe(false);
   });
 
   it("prefers the new directory when both exist without modifying the old one", async () => {
-    await mkdir(join(home, ".fabrelay"));
     await mkdir(join(home, ".jlc-cli"));
-    expect(defaultStateHome({}, home)).toBe(join(home, ".fabrelay"));
-    expect(existsSync(join(home, ".jlc-cli"))).toBe(true);
+    await mkdir(join(home, ".fabrelay"));
+    expect(defaultStateHome({}, home)).toBe(join(home, ".jlc-cli"));
+    expect(existsSync(join(home, ".fabrelay"))).toBe(true);
   });
 
   it("honors the new environment variable ahead of legacy configuration", () => {
     const current = join(home, "current");
     const legacy = join(home, "legacy");
     expect(
-      defaultStateHome({ FABRELAY_HOME: current, JLC_HOME: legacy }, home),
+      defaultStateHome({ JLC_HOME: current, FABRELAY_HOME: legacy }, home),
     ).toBe(current);
-    expect(defaultStateHome({ JLC_HOME: legacy }, home)).toBe(legacy);
+    expect(defaultStateHome({ FABRELAY_HOME: legacy }, home)).toBe(legacy);
     expect(new State(join(home, "explicit")).directory).toBe(
       join(home, "explicit", "profiles", "default"),
     );

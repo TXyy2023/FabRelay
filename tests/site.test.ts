@@ -46,7 +46,7 @@ const account = "<header>客编 TEST123A</header>";
 const upload = {
   taskId: "upload-fixture",
   fileName: "board.zip",
-  uploadName: "fabrelay-upload-fixture-board.zip",
+  uploadName: "jlc-cli-upload-fixture-board.zip",
   sha256: "1234",
   size: 20,
   uploadedAt: "2026-01-01T00:00:00Z",
@@ -61,9 +61,9 @@ const binding = {
 };
 beforeAll(async () => {
   const chrome =
-    process.env.FABRELAY_TEST_BROWSER === "chromium"
+    process.env.JLC_TEST_BROWSER === "chromium"
       ? chromium.executablePath()
-      : (process.env.FABRELAY_TEST_CHROME ??
+      : (process.env.JLC_TEST_CHROME ??
         (process.platform === "darwin"
           ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
           : undefined));
@@ -379,7 +379,7 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
   });
   it("requires parse success in the exact upload row, not just an order button", async () => {
     await fixture(
-      `${account}<table><tr><td>fabrelay-upload-fixture-board</td><td><i title="处理失败"></i></td><td>立即下单</td></tr></table>`,
+      `${account}<table><tr><td>jlc-cli-upload-fixture-board</td><td><i title="处理失败"></i></td><td>立即下单</td></tr></table>`,
     );
     const result = await siteAdapter.reconcile(
       "pcb.upload",
@@ -636,7 +636,7 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
     expect(changed.resume).toBeUndefined();
   });
 
-  it.each(["fabrelay", "jlc-cli"])(
+  it.each(["jlc-cli", "fabrelay"])(
     "reconstructs a prior %s upload without sending again",
     async (prefix) => {
       const file = join(artifactDir, "original.zip");
@@ -668,7 +668,7 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
     const row = (prefix: string) =>
       `<tr><td>${prefix}-fixture-task-original</td><td><i title="处理成功"></i><button>立即下单</button></td></tr>`;
     await fixture(
-      `${account}<input type="file" onchange="window.uploaded=true"><table>${row("fabrelay")}${row("jlc-cli")}</table>`,
+      `${account}<input type="file" onchange="window.uploaded=true"><table>${row("jlc-cli")}${row("fabrelay")}</table>`,
     );
     const ambiguous = await siteAdapter.reconcile(
       "pcb.upload",
@@ -680,7 +680,7 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
     expect(ambiguous.data.candidateUploadNames).toHaveLength(2);
     await page
       .locator("tr")
-      .filter({ hasText: "fabrelay-fixture-task" })
+      .filter({ hasText: "jlc-cli-fixture-task" })
       .evaluate((row) => row.remove());
     const recovered = await siteAdapter.reconcile(
       "pcb.upload",
@@ -689,7 +689,7 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
     );
     expect(recovered.status).toBe("succeeded");
     expect(recovered.data.upload).toMatchObject({
-      uploadName: "jlc-cli-fixture-task-original.zip",
+      uploadName: "fabrelay-fixture-task-original.zip",
     });
     expect(await page.evaluate(() => Boolean((window as any).uploaded))).toBe(
       false,
@@ -869,7 +869,7 @@ describe(suiteName, { timeout: 20000, retry: 0 }, () => {
 
   it("does not bind an unrelated open form to an upload without a form identity", async () => {
     await fixture(
-      `<div id="leftcontent"><label>数量<input name="数量" value="5"></label></div><aside id="rightcontent">fabrelay-other-board</aside>`,
+      `<div id="leftcontent"><label>数量<input name="数量" value="5"></label></div><aside id="rightcontent">jlc-cli-other-board</aside>`,
     );
     const result = await siteAdapter.run(
       "pcb.options",

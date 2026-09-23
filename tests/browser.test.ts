@@ -41,9 +41,9 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 
 const directories: string[] = [];
 const chrome =
-  process.env.FABRELAY_TEST_BROWSER === "chromium"
+  process.env.JLC_TEST_BROWSER === "chromium"
     ? chromium.executablePath()
-    : (process.env.FABRELAY_CHROME_EXECUTABLE ??
+    : (process.env.JLC_CHROME_EXECUTABLE ??
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
 async function directory() {
   const value = await mkdtemp(join(tmpdir(), "jlc-browser-test-"));
@@ -101,7 +101,7 @@ describe("CDP endpoint boundaries", () => {
       "win32",
       {
         PATH: "D:/bin;E:/tools",
-        FABRELAY_OBSCURA_EXECUTABLE: "C:/safe/obscura.exe",
+        JLC_OBSCURA_EXECUTABLE: "C:/safe/obscura.exe",
       },
       "C:/Users/test",
     );
@@ -119,7 +119,7 @@ describe("CDP endpoint boundaries", () => {
       code: "BROWSER_NOT_INSTALLED",
     });
   });
-  it("prefers FabRelay variables while retaining legacy browser paths and settings", () => {
+  it("prefers jlc-cli variables while retaining legacy browser paths and settings", () => {
     for (const engine of ["chrome", "obscura"] as const) {
       const key = `${engine.toUpperCase()}_EXECUTABLE`;
       expect(
@@ -127,8 +127,8 @@ describe("CDP endpoint boundaries", () => {
           engine,
           "linux",
           {
-            [`FABRELAY_${key}`]: "/new/browser",
-            [`JLC_${key}`]: "/old/browser",
+            [`JLC_${key}`]: "/new/browser",
+            [`FABRELAY_${key}`]: "/old/browser",
           },
           "/test",
         )[0],
@@ -138,15 +138,15 @@ describe("CDP endpoint boundaries", () => {
           engine,
           "linux",
           {
-            [`JLC_${key}`]: "/old/browser",
+            [`FABRELAY_${key}`]: "/old/browser",
           },
           "/test",
         )[0],
       ).toBe("/old/browser");
     }
     const candidates = executableCandidates("obscura", "linux", {}, "/test");
-    const current = join("/test", ".cache", "fabrelay", "obscura", "obscura");
-    const legacy = join("/test", ".cache", "jlc-cli", "obscura", "obscura");
+    const current = join("/test", ".cache", "jlc-cli", "obscura", "obscura");
+    const legacy = join("/test", ".cache", "fabrelay", "obscura", "obscura");
     expect(candidates).toContain(legacy);
     expect(candidates.indexOf(current)).toBeLessThan(
       candidates.indexOf(legacy),
@@ -155,8 +155,8 @@ describe("CDP endpoint boundaries", () => {
       "/profile",
       9222,
       {
-        JLC_CHROME_HEADLESS: "0",
-        JLC_CHROME_NO_SANDBOX: "1",
+        FABRELAY_CHROME_HEADLESS: "0",
+        FABRELAY_CHROME_NO_SANDBOX: "1",
       },
       "linux",
     );
@@ -166,10 +166,10 @@ describe("CDP endpoint boundaries", () => {
       "/profile",
       9222,
       {
-        FABRELAY_CHROME_HEADLESS: "1",
-        JLC_CHROME_HEADLESS: "0",
-        FABRELAY_CHROME_NO_SANDBOX: "0",
-        JLC_CHROME_NO_SANDBOX: "1",
+        JLC_CHROME_HEADLESS: "1",
+        FABRELAY_CHROME_HEADLESS: "0",
+        JLC_CHROME_NO_SANDBOX: "0",
+        FABRELAY_CHROME_NO_SANDBOX: "1",
       },
       "linux",
     );
@@ -184,7 +184,7 @@ describe("CDP endpoint boundaries", () => {
       chromeLaunchArguments(
         "/private/profile",
         9222,
-        { FABRELAY_CHROME_NO_SANDBOX: "1" },
+        { JLC_CHROME_NO_SANDBOX: "1" },
         "linux",
       ),
     ).toContain("--no-sandbox");
@@ -192,7 +192,7 @@ describe("CDP endpoint boundaries", () => {
       chromeLaunchArguments(
         "/private/profile",
         9222,
-        { FABRELAY_CHROME_NO_SANDBOX: "1" },
+        { JLC_CHROME_NO_SANDBOX: "1" },
         "darwin",
       ),
     ).not.toContain("--no-sandbox");
@@ -200,7 +200,7 @@ describe("CDP endpoint boundaries", () => {
       chromeLaunchArguments(
         "/private/profile",
         9222,
-        { FABRELAY_CHROME_HEADLESS: "0" },
+        { JLC_CHROME_HEADLESS: "0" },
         "linux",
       ),
     ).not.toContain("--headless=new");

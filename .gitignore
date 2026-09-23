@@ -5,7 +5,7 @@ coverage/
 .DS_Store
 .env
 .env.*
-.fabrelay/
 .jlc-cli/
+.fabrelay/
 test-results/
 playwright-report/

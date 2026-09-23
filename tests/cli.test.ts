@@ -13,7 +13,7 @@ beforeAll(async () => {
   ]);
 }, 30000);
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "fabrelay-"));
+  home = await mkdtemp(join(tmpdir(), "jlc-cli-"));
 });
 afterEach(async () => {
   await rm(home, { recursive: true, force: true });
@@ -36,14 +36,14 @@ async function run(...args: string[]) {
 describe("installed-command contract", () => {
   it("exposes the renamed command and the packaged version", async () => {
     const help = await execFile(process.execPath, [cli, "--help"]);
-    expect(help.stdout).toContain("Usage: fabrelay");
+    expect(help.stdout).toContain("Usage: jlc-cli");
     const version = await execFile(process.execPath, [cli, "--version"]);
     const pkg = JSON.parse(
       await readFile(join(process.cwd(), "package.json"), "utf8"),
     );
     expect(version.stdout.trim()).toBe(pkg.version);
-    expect(pkg.name).toBe("fabrelay");
-    expect(pkg.bin).toEqual({ fabrelay: "dist/cli.js" });
+    expect(pkg.name).toBe("jlc-cli");
+    expect(pkg.bin).toEqual({ "jlc-cli": "dist/cli.js" });
   });
   it("does not authorize initialization from a noninteractive process without explicit consent", async () => {
     const result = await run("init");
@@ -97,8 +97,8 @@ describe("installed-command contract", () => {
     const destination = join(home, "skills");
     expect((await run("skill", "install", "--to", destination)).code).toBe(0);
     expect(
-      await readFile(join(destination, "fabrelay/SKILL.md"), "utf8"),
-    ).toContain("name: fabrelay");
+      await readFile(join(destination, "jlc-cli/SKILL.md"), "utf8"),
+    ).toContain("name: jlc-cli");
     const repeat = await run("skill", "install", "--to", destination);
     expect(repeat.code).toBe(1);
     expect(repeat.value.error.code).toBe("DESTINATION_EXISTS");
